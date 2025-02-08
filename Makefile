@@ -1,4 +1,6 @@
 DOCKER_COMPOSE_FILE = docker/local/docker-compose.yml
+ENV_FILE = docker/local/.env
+ENV_EXAMPLE_FILE = docker/local/.env.example
 
 .PHONY: setup
 setup:

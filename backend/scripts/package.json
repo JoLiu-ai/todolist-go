@@ -1,0 +1,12 @@
+{
+  "name": "media-migration",
+  "version": "1.0.0",
+  "description": "Media data migration script",
+  "main": "migrate_data.js",
+  "scripts": {
+    "migrate": "node migrate_data.js"
+  },
+  "dependencies": {
+    "pg": "^8.11.3"
+  }
+}
