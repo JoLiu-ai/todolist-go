@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { Media, Note } from '../types/media';
+import type { Media, Note } from '../types/media';
 import Modal from './Modal';
+import { useParams } from 'react-router-dom';
+import LoadingSpinner from './LoadingSpinner';
 
 interface MediaDetailProps {
   item: Media;
@@ -28,11 +30,12 @@ const MediaDetail: React.FC<MediaDetailProps> = ({
   onEditNote,
   onDeleteNote,
 }) => {
+  const { id } = useParams();
   const [isAddingNote, setIsAddingNote] = useState(false);
   const [noteContent, setNoteContent] = useState('');
   const [editingNoteId, setEditingNoteId] = useState<number | null>(null);
   const [expandedNoteId, setExpandedNoteId] = useState<number | null>(null);
-  const [imageError, setImageError] = React.useState(false);
+  const [imageError, setImageError] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [notes, setNotes] = useState<Note[]>([]);
   const [totalNotes, setTotalNotes] = useState(0);
@@ -144,43 +147,44 @@ const MediaDetail: React.FC<MediaDetailProps> = ({
   const totalPages = Math.ceil(totalNotes / pageSize);
 
   return (
-    <div className="fixed inset-0 bg-[#fafafa] z-50 overflow-hidden">
-      <div className="h-full flex max-w-5xl mx-auto">
+    <div className="fixed inset-0 bg-[#fcf9f3] z-50 overflow-hidden">
+      <div className="h-full flex max-w-6xl mx-auto">
         {/* Left Panel - Media Info */}
-        <div className="w-72 bg-white shadow-sm overflow-y-auto">
+        <div className="w-80 bg-white/80 backdrop-blur-sm shadow-[0_2px_8px_rgba(0,0,0,0.04)] overflow-y-auto border-r border-[#ebe5d9]">
           <div className="sticky top-0">
             {/* Cover Image */}
-            <div className="relative aspect-[2/3] bg-[#f5f5f5] group">
+            <div className="relative aspect-[2/3] bg-gradient-to-b from-[#f7f3eb] to-[#ebe5d9] group">
               {item.cover && !imageError ? (
                 <img
                   src={item.cover}
-                  alt={item.display_name?.primary || 'Media cover'}
-                  className="w-full h-full object-cover"
+                  alt={item.display_name?.primary || '封面'}
+                  className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
                   onError={() => setImageError(true)}
                 />
               ) : (
                 <div className="w-full h-full flex flex-col items-center justify-center">
-                  <span className="text-2xl opacity-40">
+                  <span className="text-4xl opacity-60 transition-transform duration-300 group-hover:scale-110">
                     {item.type === 'book' ? '📚' : '🎬'}
                   </span>
                 </div>
               )}
-              <div className="absolute inset-0 bg-black/0 group-hover:bg-black/5 transition-colors duration-300" />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
             </div>
 
             {/* Media Info */}
-            <div className="px-4 py-5 space-y-5">
+            <div className="px-6 py-6 space-y-6">
+              {/* Title Section */}
               <div>
-                <h2 className="text-base font-medium text-neutral-800">
-                  {item.display_name?.primary || 'Untitled'}
+                <h2 className="font-serif text-[#2c2c2c] text-lg font-medium leading-snug">
+                  {item.display_name?.primary || '无题'}
                 </h2>
                 {item.display_name?.secondary && (
-                  <p className="mt-1 text-sm text-neutral-500 font-normal">
+                  <p className="mt-1.5 font-serif text-sm text-[#666666] italic">
                     {item.display_name.secondary}
                   </p>
                 )}
                 {item.original_name?.primary && (
-                  <p className="mt-1 text-sm text-neutral-400">
+                  <p className="mt-2 font-serif text-sm text-[#666666] italic">
                     {item.original_name.primary}
                     {item.original_name.secondary && (
                       <span className="block opacity-75">{item.original_name.secondary}</span>
@@ -189,109 +193,178 @@ const MediaDetail: React.FC<MediaDetailProps> = ({
                 )}
               </div>
 
+              {/* Status and Rating */}
+              <div className="flex items-center justify-between pt-4 border-t border-[#ebe5d9]">
+                <div>
+                  <p className="text-[11px] text-[#8c8c8c] tracking-wide uppercase mb-1.5 font-serif">状态</p>
+                  <span className="inline-block px-2.5 py-1 text-xs font-serif text-[#4a4a4a] bg-[#f7f3eb] rounded-sm transition-colors duration-300 hover:bg-[#ebe5d9]">
+                    {item.status === 'ongoing' ? (item.type === 'book' ? '阅读中' : '观看中') :
+                     item.status === 'finished' ? (item.type === 'book' ? '已读完' : '已看完') :
+                     item.status === 'wishlist' ? (item.type === 'book' ? '想读' : '想看') :
+                     item.status === 'dropped' ? (item.type === 'book' ? '已弃读' : '已弃看') :
+                     item.status}
+                  </span>
+                </div>
+                {item.rating > 0 && (
+                  <div className="text-right">
+                    <p className="text-[11px] text-[#8c8c8c] tracking-wide uppercase mb-1.5 font-serif">评分</p>
+                    <div className="flex items-center gap-1">
+                      <span className="text-[#d4b483]">✦</span>
+                      <span className="text-sm font-serif text-[#4a4a4a]">{item.rating.toFixed(1)}</span>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Creator */}
               {typeof item.creator === 'string' && item.creator.length > 0 && (
-                <div className="pt-4 border-t border-neutral-100">
-                  <p className="text-[11px] text-neutral-400 tracking-wide uppercase">
-                    {item.type === 'book' ? 'Author' : 'Director'}
+                <div className="pt-4 border-t border-[#ebe5d9]">
+                  <p className="text-[11px] text-[#8c8c8c] tracking-wide uppercase mb-1.5 font-serif">
+                    {item.type === 'book' ? '文字' : '影像'}
                   </p>
-                  <p className="mt-1.5 text-sm text-neutral-600">{item.creator}</p>
+                  <p className="text-sm font-serif text-[#4a4a4a]">{item.creator}</p>
                 </div>
               )}
 
+              {/* Description */}
               {item.description?.primary && (
-                <div className="pt-4 border-t border-neutral-100">
-                  <p className="text-[11px] text-neutral-400 tracking-wide uppercase">Description</p>
-                  <p className="mt-1.5 text-sm text-neutral-600 leading-relaxed">{item.description.primary}</p>
-                  {item.description.secondary && (
-                    <p className="mt-2 text-sm text-neutral-500 italic leading-relaxed">
-                      {item.description.secondary}
-                    </p>
-                  )}
+                <div className="pt-4 border-t border-[#ebe5d9]">
+                  <p className="text-[11px] text-[#8c8c8c] tracking-wide uppercase mb-1.5 font-serif">简记</p>
+                  <div className="prose prose-sm max-w-none">
+                    <p className="font-serif text-[#4a4a4a] leading-relaxed">{item.description.primary}</p>
+                    {item.description.secondary && (
+                      <p className="mt-2 font-serif text-[#666666] italic leading-relaxed">
+                        {item.description.secondary}
+                      </p>
+                    )}
+                  </div>
                 </div>
               )}
 
+              {/* Dates */}
+              {(item.start_date || item.finish_date) && (
+                <div className="pt-4 border-t border-[#ebe5d9]">
+                  <p className="text-[11px] text-[#8c8c8c] tracking-wide uppercase mb-1.5 font-serif">时间</p>
+                  <div className="space-y-1">
+                    {item.start_date && (
+                      <p className="text-sm font-serif text-[#4a4a4a]">
+                        始于 <span className="text-[#2c2c2c]">{formatDate(item.start_date)}</span>
+                      </p>
+                    )}
+                    {item.finish_date && (
+                      <p className="text-sm font-serif text-[#4a4a4a]">
+                        终于 <span className="text-[#2c2c2c]">{formatDate(item.finish_date)}</span>
+                      </p>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Tags */}
+              {item.tags && item.tags.length > 0 && (
+                <div className="pt-4 border-t border-[#ebe5d9]">
+                  <p className="text-[11px] text-[#8c8c8c] tracking-wide uppercase mb-1.5 font-serif">标签</p>
+                  <div className="flex flex-wrap gap-2">
+                    {item.tags.map((tag, index) => (
+                      <span
+                        key={index}
+                        className="inline-block px-2.5 py-1 bg-[#f7f3eb] text-[#4a4a4a] text-xs font-serif"
+                      >
+                        {tag}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Resource Link */}
               {item.resource_link && (
-                <div className="pt-4 border-t border-neutral-100">
-                  <p className="text-[11px] text-neutral-400 tracking-wide uppercase">Resource</p>
+                <div className="pt-4 border-t border-[#ebe5d9]">
                   <a
                     href={item.resource_link}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="mt-1.5 inline-block text-sm text-blue-500 hover:text-blue-600"
+                    className="inline-flex items-center gap-2 text-sm text-[#8c8c8c] hover:text-[#d4b483] transition-colors duration-300"
                   >
-                    {item.resource_link}
+                    <span>资源链接</span>
+                    <span className="text-xs">↗</span>
                   </a>
                 </div>
               )}
+
+              {/* Actions */}
+              <div className="pt-4 border-t border-[#ebe5d9]">
+                <div className="flex flex-col gap-2">
+                  <button
+                    onClick={() => onEdit(item.id)}
+                    className="flex items-center justify-center w-full h-9 text-sm font-serif text-[#946b45] hover:text-[#7c593a] bg-[#f7f3eb] hover:bg-[#ebe5d9] transition-all"
+                  >
+                    <span className="mr-1.5">✦</span>
+                    编辑
+                  </button>
+                  <button
+                    onClick={() => onDelete(item.id)}
+                    className="flex items-center justify-center w-full h-9 text-sm font-serif text-[#c25450] hover:text-[#a3433f] bg-[#f9e9e8] hover:bg-[#f5dbd9] transition-all"
+                  >
+                    <span className="mr-1.5">✕</span>
+                    删除
+                  </button>
+                  <button
+                    onClick={handleAddNoteClick}
+                    className="flex items-center justify-center w-full h-9 text-sm font-serif text-[#3c6665] hover:text-[#2d4d4c] bg-[#eaf1f1] hover:bg-[#dce7e7] transition-all"
+                  >
+                    <span className="mr-1.5">✎</span>
+                    写随笔
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
         </div>
 
         {/* Right Panel - Notes */}
-        <div className="flex-1 flex flex-col min-w-0 bg-white border-l border-neutral-100">
-          {/* Header with all actions */}
-          <div className="flex items-center justify-between h-16 px-6 border-b border-neutral-100">
-            <div className="flex items-baseline">
-              <h3 className="text-base font-medium text-neutral-800">笔记</h3>
-              <span className="ml-2 text-sm text-neutral-400">
-                {totalNotes} 条
-              </span>
-            </div>
-            <div className="flex items-center gap-3">
-              <button
-                onClick={handleAddNoteClick}
-                className="inline-flex items-center h-9 px-4 text-sm font-medium text-emerald-600 hover:text-emerald-700 bg-emerald-50 hover:bg-emerald-100 rounded-md transition-all hover:shadow-sm"
-              >
-                <span className="mr-1.5">✏️</span>
-                写笔记
-              </button>
-              <button
-                onClick={() => onEdit(item.id)}
-                className="inline-flex items-center h-9 px-4 text-sm font-medium text-blue-600 hover:text-blue-700 bg-blue-50 hover:bg-blue-100 rounded-md transition-all hover:shadow-sm"
-              >
-                <span className="mr-1.5">✨</span>
-                编辑
-              </button>
-              <button
-                onClick={() => onDelete(item.id)}
-                className="inline-flex items-center h-9 px-4 text-sm font-medium text-rose-600 hover:text-rose-700 bg-rose-50 hover:bg-rose-100 rounded-md transition-all hover:shadow-sm"
-              >
-                <span className="mr-1.5">🗑️</span>
-                删除
-              </button>
-            </div>
+        <div className="flex-1 overflow-hidden flex flex-col">
+          {/* Header */}
+          <div className="sticky top-0 z-10 px-8 py-4 bg-white/80 backdrop-blur-sm border-b border-[#ebe5d9] flex items-center justify-between">
+            <h3 className="font-serif text-lg text-[#2c2c2c]">笔记</h3>
+            <button
+              onClick={handleAddNoteClick}
+              className="px-4 py-2 text-sm font-serif text-[#4a4a4a] bg-[#f7f3eb] hover:bg-[#ebe5d9] transition-colors duration-300 rounded-sm"
+            >
+              添加笔记
+            </button>
           </div>
 
-          {/* Notes Content */}
-          <div className="flex-1 overflow-y-auto px-6 py-4">
+          {/* Notes List */}
+          <div className="flex-1 overflow-y-auto px-8 py-6">
             {isLoading ? (
-              <div className="flex items-center justify-center h-32">
-                <span className="text-sm text-neutral-500">加载中...</span>
-              </div>
-            ) : totalNotes > 0 ? (
-              <div className="space-y-3">
-                {notes.map(note => (
+              <LoadingSpinner />
+            ) : notes.length > 0 ? (
+              <div className="space-y-6">
+                {notes.map((note: Note) => (
                   <div
                     key={note.id}
-                    className="group relative bg-neutral-50 hover:bg-white rounded-lg p-4 transition-all hover:shadow-[0_2px_12px_rgba(0,0,0,0.04)]"
+                    className="bg-white/80 backdrop-blur-sm rounded-sm shadow-[0_2px_8px_rgba(0,0,0,0.04)] p-4"
                   >
-                    <p className="text-sm text-neutral-700 whitespace-pre-wrap break-words leading-relaxed">
-                      {note.content}
-                    </p>
-                    <div className="flex items-center justify-between mt-3 pt-3 border-t border-neutral-200/70">
-                      <time className="text-xs text-neutral-400">
-                        {formatDate(note.createdAt)}
-                      </time>
-                      <div className="opacity-0 group-hover:opacity-100 transition-opacity">
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="flex-1">
+                        <p className="text-sm text-[#4a4a4a] whitespace-pre-wrap">
+                          {note.content}
+                        </p>
+                        <p className="mt-2 text-xs text-[#8c8c8c]">
+                          {formatDate(note.createdAt)}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2">
                         <button
                           onClick={() => handleEditNoteClick(note)}
-                          className="text-xs font-medium text-blue-500 hover:text-blue-600 mr-3"
+                          className="text-sm text-[#8c8c8c] hover:text-[#d4b483] transition-colors duration-300"
                         >
                           编辑
                         </button>
                         <button
                           onClick={() => handleDeleteNoteClick(note.id)}
-                          className="text-xs font-medium text-rose-500 hover:text-rose-600"
+                          className="text-sm text-[#8c8c8c] hover:text-[#d4b483] transition-colors duration-300"
                         >
                           删除
                         </button>
@@ -299,89 +372,65 @@ const MediaDetail: React.FC<MediaDetailProps> = ({
                     </div>
                   </div>
                 ))}
-
-                {/* Pagination */}
-                {totalPages > 1 && (
-                  <div className="flex justify-center items-center space-x-2 mt-6">
-                    <button
-                      onClick={() => handlePageChange(currentPage - 1)}
-                      disabled={currentPage === 1}
-                      className="px-3 py-1 text-sm text-neutral-600 bg-neutral-100 rounded-md disabled:opacity-50"
-                    >
-                      上一页
-                    </button>
-                    <span className="text-sm text-neutral-600">
-                      {currentPage} / {totalPages}
-                    </span>
-                    <button
-                      onClick={() => handlePageChange(currentPage + 1)}
-                      disabled={currentPage === totalPages}
-                      className="px-3 py-1 text-sm text-neutral-600 bg-neutral-100 rounded-md disabled:opacity-50"
-                    >
-                      下一页
-                    </button>
-                  </div>
-                )}
               </div>
             ) : (
-              <div className="h-full flex flex-col items-center justify-center text-center">
-                <div className="w-16 h-16 flex items-center justify-center rounded-full bg-gradient-to-br from-neutral-50 to-neutral-100">
-                  <span className="text-2xl">📝</span>
-                </div>
-                <p className="mt-4 text-sm text-neutral-600 font-medium">开始写下你的第一条笔记吧</p>
-                <div>
-                  <button
-                    onClick={handleAddNoteClick}
-                    className="mt-4 inline-flex items-center h-9 px-4 text-sm font-medium text-emerald-600 hover:text-emerald-700 bg-emerald-50 hover:bg-emerald-100 rounded-md transition-all hover:shadow-sm"
-                  >
-                    <span className="mr-1.5">✏️</span>
-                    写笔记
-                  </button>
-                </div>
+              <div className="text-center py-12">
+                <p className="text-sm text-[#8c8c8c]">暂无笔记</p>
               </div>
             )}
           </div>
+
+          {/* Pagination */}
+          {totalPages > 1 && (
+            <div className="sticky bottom-0 z-10 px-8 py-4 bg-white/80 backdrop-blur-sm border-t border-[#ebe5d9] flex items-center justify-center gap-2">
+              {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                <button
+                  key={page}
+                  onClick={() => handlePageChange(page)}
+                  className={`w-8 h-8 text-sm font-serif rounded-sm transition-colors duration-300 ${
+                    currentPage === page
+                      ? 'bg-[#d4b483] text-white'
+                      : 'text-[#4a4a4a] hover:bg-[#f7f3eb]'
+                  }`}
+                >
+                  {page}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
       </div>
 
-      {/* Note Editor Modal */}
-      <Modal isOpen={isAddingNote} onClose={() => setIsAddingNote(false)}>
-        <div className="w-full max-w-xl">
-          <div className="flex items-center justify-between mb-4">
-            <h4 className="text-lg font-medium text-neutral-800">
-              {editingNoteId ? '编辑笔记' : '写笔记'}
-            </h4>
-          </div>
-          <div className="relative">
+      {/* Add/Edit Note Modal */}
+      {isAddingNote && (
+        <Modal onClose={() => setIsAddingNote(false)}>
+          <div className="w-full max-w-lg">
+            <h3 className="text-lg font-serif text-[#2c2c2c] mb-4">
+              {editingNoteId ? '编辑笔记' : '添加笔记'}
+            </h3>
             <textarea
               value={noteContent}
               onChange={(e) => setNoteContent(e.target.value)}
+              className="w-full h-32 p-3 text-sm text-[#4a4a4a] bg-[#f7f3eb] border border-[#ebe5d9] rounded-sm resize-none focus:outline-none focus:border-[#d4b483] transition-colors duration-300"
               placeholder="写下你的想法..."
-              rows={10}
-              className="w-full text-sm text-neutral-700 bg-neutral-50 border-0 rounded-lg focus:ring-1 focus:ring-emerald-500 resize-none leading-relaxed placeholder:text-neutral-400 p-4"
-              autoFocus
             />
-            <div className="absolute bottom-3 right-3 text-xs text-neutral-400">
-              {noteContent.length} 字
+            <div className="mt-4 flex justify-end gap-3">
+              <button
+                onClick={() => setIsAddingNote(false)}
+                className="px-4 py-2 text-sm text-[#8c8c8c] hover:text-[#4a4a4a] transition-colors duration-300"
+              >
+                取消
+              </button>
+              <button
+                onClick={handleNoteSubmit}
+                className="px-4 py-2 text-sm text-white bg-[#d4b483] hover:bg-[#c9a978] transition-colors duration-300 rounded-sm"
+              >
+                保存
+              </button>
             </div>
           </div>
-          <div className="flex justify-end gap-3 mt-4">
-            <button
-              onClick={() => setIsAddingNote(false)}
-              className="h-9 px-5 text-sm font-medium text-neutral-600 hover:text-neutral-700 bg-neutral-100 hover:bg-neutral-200 rounded-md transition-all hover:shadow-sm"
-            >
-              取消
-            </button>
-            <button
-              onClick={handleNoteSubmit}
-              disabled={!noteContent.trim()}
-              className="h-9 px-5 text-sm font-medium text-emerald-600 hover:text-emerald-700 bg-emerald-50 hover:bg-emerald-100 rounded-md transition-all hover:shadow-sm disabled:opacity-50"
-            >
-              {editingNoteId ? '保存' : '添加'}
-            </button>
-          </div>
-        </div>
-      </Modal>
+        </Modal>
+      )}
     </div>
   );
 };

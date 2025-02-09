@@ -6,58 +6,21 @@ import (
 
 	"cute-todo/backend/internal/core/domain"
 	"cute-todo/backend/internal/core/ports"
-	"cute-todo/backend/internal/core/services"
 
 	"github.com/gin-gonic/gin"
+	"gorm.io/gorm"
 )
 
 type MediaHandler struct {
-	service *services.MediaService
+	service ports.MediaService
+	db      *gorm.DB
 }
 
-func NewMediaHandler(service *services.MediaService) *MediaHandler {
-	return &MediaHandler{service: service}
+func NewMediaHandler(service ports.MediaService, db *gorm.DB) *MediaHandler {
+	return &MediaHandler{service: service, db: db}
 }
 
-// RegisterRoutes 注册路由
-func (h *MediaHandler) RegisterRoutes(r *gin.Engine) {
-	v1 := r.Group("/api/v1")
-	{
-		media := v1.Group("/media")
-		{
-			media.POST("", h.CreateMedia)
-			media.GET("", h.ListMedia)
-			media.GET("/:id", h.GetMedia)
-			media.PUT("/:id", h.UpdateMedia)
-			media.DELETE("/:id", h.DeleteMedia)
-
-			// Add note endpoints
-			media.GET("/:id/notes", h.GetNotes)
-			media.POST("/:id/notes", h.CreateNote)
-			media.PUT("/:id/notes/:noteId", h.UpdateNote)
-			media.DELETE("/:id/notes/:noteId", h.DeleteNote)
-		}
-	}
-}
-
-// CreateMedia 创建新的媒体项目
-func (h *MediaHandler) CreateMedia(c *gin.Context) {
-	var media domain.Media
-	if err := c.ShouldBindJSON(&media); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
-	}
-
-	if err := h.service.Create(c.Request.Context(), &media); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
-	}
-
-	c.JSON(http.StatusCreated, media)
-}
-
-// ListMedia 获取媒体列表
-func (h *MediaHandler) ListMedia(c *gin.Context) {
+func (h *MediaHandler) List(c *gin.Context) {
 	var filter ports.MediaFilter
 	// 从查询参数构建过滤条件
 	if mediaType := c.Query("type"); mediaType != "" {
@@ -106,14 +69,24 @@ func (h *MediaHandler) ListMedia(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, medias)
+	count, err := h.service.Count(c.Request.Context(), filter)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"data":     medias,
+		"total":    count,
+		"page":     filter.Page,
+		"pageSize": filter.PageSize,
+	})
 }
 
-// GetMedia 获取单个媒体项目
-func (h *MediaHandler) GetMedia(c *gin.Context) {
-	id, err := strconv.ParseUint(c.Param("id"), 10, 32)
+func (h *MediaHandler) GetByID(c *gin.Context) {
+	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid ID"})
 		return
 	}
 
@@ -123,20 +96,38 @@ func (h *MediaHandler) GetMedia(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, media)
+	c.JSON(http.StatusOK, gin.H{
+		"data": media,
+	})
 }
 
-// UpdateMedia 更新媒体项目
-func (h *MediaHandler) UpdateMedia(c *gin.Context) {
-	id, err := strconv.ParseUint(c.Param("id"), 10, 32)
+func (h *MediaHandler) Create(c *gin.Context) {
+	var media domain.Media
+	if err := c.ShouldBindJSON(&media); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body"})
+		return
+	}
+
+	if err := h.service.Create(c.Request.Context(), &media); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusCreated, gin.H{
+		"data": media,
+	})
+}
+
+func (h *MediaHandler) Update(c *gin.Context) {
+	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid ID"})
 		return
 	}
 
 	var media domain.Media
 	if err := c.ShouldBindJSON(&media); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body"})
 		return
 	}
 
@@ -146,14 +137,15 @@ func (h *MediaHandler) UpdateMedia(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, media)
+	c.JSON(http.StatusOK, gin.H{
+		"data": media,
+	})
 }
 
-// DeleteMedia 删除媒体项目
-func (h *MediaHandler) DeleteMedia(c *gin.Context) {
-	id, err := strconv.ParseUint(c.Param("id"), 10, 32)
+func (h *MediaHandler) Delete(c *gin.Context) {
+	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid ID"})
 		return
 	}
 
@@ -165,116 +157,224 @@ func (h *MediaHandler) DeleteMedia(c *gin.Context) {
 	c.Status(http.StatusNoContent)
 }
 
-// GetNotes 获取媒体的所有笔记
-func (h *MediaHandler) GetNotes(c *gin.Context) {
-	id, err := strconv.ParseUint(c.Param("id"), 10, 32)
+func (h *MediaHandler) AddNote(c *gin.Context) {
+	mediaID, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid media ID"})
 		return
 	}
 
-	// 获取分页参数
-	page := 1
-	pageSize := 10
-	if p := c.Query("page"); p != "" {
-		if pInt, err := strconv.Atoi(p); err == nil && pInt > 0 {
-			page = pInt
-		}
-	}
-	if ps := c.Query("pageSize"); ps != "" {
-		if psInt, err := strconv.Atoi(ps); err == nil && psInt > 0 {
-			pageSize = psInt
-		}
+	var note domain.Note
+	if err := c.ShouldBindJSON(&note); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body"})
+		return
 	}
 
-	// 获取笔记总数
-	total, err := h.service.CountNotes(c.Request.Context(), uint(id))
+	note.MediaID = uint(mediaID)
+	if err := h.service.AddNote(c.Request.Context(), uint(mediaID), &note); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusCreated, gin.H{
+		"data": note,
+	})
+}
+
+func (h *MediaHandler) UpdateNote(c *gin.Context) {
+	mediaID, err := strconv.ParseUint(c.Param("mediaId"), 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid media ID"})
+		return
+	}
+
+	noteID, err := strconv.ParseUint(c.Param("noteId"), 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid note ID"})
+		return
+	}
+
+	var note domain.Note
+	if err := c.ShouldBindJSON(&note); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body"})
+		return
+	}
+
+	note.ID = uint(noteID)
+	note.MediaID = uint(mediaID)
+	if err := h.service.UpdateNote(c.Request.Context(), uint(mediaID), &note); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"data": note,
+	})
+}
+
+func (h *MediaHandler) DeleteNote(c *gin.Context) {
+	mediaID, err := strconv.ParseUint(c.Param("mediaId"), 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid media ID"})
+		return
+	}
+
+	noteID, err := strconv.ParseUint(c.Param("noteId"), 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid note ID"})
+		return
+	}
+
+	if err := h.service.DeleteNote(c.Request.Context(), uint(mediaID), uint(noteID)); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.Status(http.StatusNoContent)
+}
+
+func (h *MediaHandler) GetAll(c *gin.Context) {
+	// 实现获取所有媒体列表的逻辑
+}
+
+// GetMediaList 获取媒体列表，支持按类型筛选
+func (h *MediaHandler) GetMediaList(c *gin.Context) {
+	var filter ports.MediaFilter
+	// 从查询参数构建过滤条件
+	if mediaType := c.Query("type"); mediaType != "" {
+		t := domain.MediaType(mediaType)
+		filter.Type = &t
+	}
+
+	userID := c.GetUint("user_id") // 从JWT中获取
+	filter.UserID = &userID
+
+	medias, err := h.service.List(c.Request.Context(), filter)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
-	// 获取分页笔记数据
-	notes, err := h.service.GetNotes(c.Request.Context(), uint(id), page, pageSize)
+	count, err := h.service.Count(c.Request.Context(), filter)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"notes":    notes,
-		"total":    total,
-		"page":     page,
-		"pageSize": pageSize,
+		"data":     medias,
+		"total":    count,
+		"page":     filter.Page,
+		"pageSize": filter.PageSize,
 	})
 }
 
-// CreateNote 创建新笔记
-func (h *MediaHandler) CreateNote(c *gin.Context) {
-	id, err := strconv.ParseUint(c.Param("id"), 10, 32)
+// GetMediaByID 获取单个媒体详情
+func (h *MediaHandler) GetMediaByID(c *gin.Context) {
+	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid ID"})
 		return
 	}
 
-	var note domain.Note
-	if err := c.ShouldBindJSON(&note); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
-	}
-
-	if err := h.service.AddNote(c.Request.Context(), uint(id), &note); err != nil {
+	userID := c.GetUint("user_id")
+	media, err := h.service.GetByID(c.Request.Context(), uint(id))
+	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
-	c.JSON(http.StatusCreated, note)
+	// 检查是否是用户自己的媒体
+	if media.UserID != userID {
+		c.JSON(http.StatusForbidden, gin.H{"error": "Access denied"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"data": media,
+	})
 }
 
-// UpdateNote 更新笔记
-func (h *MediaHandler) UpdateNote(c *gin.Context) {
-	mediaID, err := strconv.ParseUint(c.Param("id"), 10, 32)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid media id"})
+// CreateMedia 创建新的媒体
+func (h *MediaHandler) CreateMedia(c *gin.Context) {
+	var media domain.Media
+	if err := c.ShouldBindJSON(&media); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body"})
 		return
 	}
 
-	noteID, err := strconv.ParseUint(c.Param("noteId"), 10, 32)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid note id"})
-		return
-	}
-
-	var note domain.Note
-	if err := c.ShouldBindJSON(&note); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
-	}
-
-	note.ID = uint(noteID)
-	if err := h.service.UpdateNote(c.Request.Context(), uint(mediaID), &note); err != nil {
+	media.UserID = c.GetUint("user_id")
+	if err := h.service.Create(c.Request.Context(), &media); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
-	c.JSON(http.StatusOK, note)
+	c.JSON(http.StatusCreated, gin.H{
+		"data": media,
+	})
 }
 
-// DeleteNote 删除笔记
-func (h *MediaHandler) DeleteNote(c *gin.Context) {
-	mediaID, err := strconv.ParseUint(c.Param("id"), 10, 32)
+// UpdateMedia 更新媒体信息
+func (h *MediaHandler) UpdateMedia(c *gin.Context) {
+	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid media id"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid ID"})
 		return
 	}
 
-	noteID, err := strconv.ParseUint(c.Param("noteId"), 10, 32)
+	userID := c.GetUint("user_id")
+	existingMedia, err := h.service.GetByID(c.Request.Context(), uint(id))
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid note id"})
+		c.JSON(http.StatusNotFound, gin.H{"error": "Media not found"})
 		return
 	}
 
-	if err := h.service.DeleteNote(c.Request.Context(), uint(mediaID), uint(noteID)); err != nil {
+	// 检查是否是用户自己的媒体
+	if existingMedia.UserID != userID {
+		c.JSON(http.StatusForbidden, gin.H{"error": "Access denied"})
+		return
+	}
+
+	var media domain.Media
+	if err := c.ShouldBindJSON(&media); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body"})
+		return
+	}
+
+	media.ID = uint(id)
+	media.UserID = userID
+	if err := h.service.Update(c.Request.Context(), &media); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"data": media,
+	})
+}
+
+// DeleteMedia 删除媒体
+func (h *MediaHandler) DeleteMedia(c *gin.Context) {
+	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid ID"})
+		return
+	}
+
+	userID := c.GetUint("user_id")
+	existingMedia, err := h.service.GetByID(c.Request.Context(), uint(id))
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Media not found"})
+		return
+	}
+
+	// 检查是否是用户自己的媒体
+	if existingMedia.UserID != userID {
+		c.JSON(http.StatusForbidden, gin.H{"error": "Access denied"})
+		return
+	}
+
+	if err := h.service.Delete(c.Request.Context(), uint(id)); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}

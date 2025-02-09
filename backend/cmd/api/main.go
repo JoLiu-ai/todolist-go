@@ -3,9 +3,9 @@ package main
 import (
 	"log"
 
-	"cute-todo/backend/internal/core/database"
 	"cute-todo/backend/internal/core/services"
 	"cute-todo/backend/internal/handlers"
+	"cute-todo/backend/internal/infrastructure/database"
 	"cute-todo/backend/internal/infrastructure/repositories"
 	"cute-todo/backend/router"
 )

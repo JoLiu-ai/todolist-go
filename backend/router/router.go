@@ -7,7 +7,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func SetupRouter(categoryHandler *handlers.CategoryHandler, mediaHandler *handlers.MediaHandler) *gin.Engine {
+func SetupRouter(authHandler *handlers.AuthHandler, categoryHandler *handlers.CategoryHandler, mediaHandler *handlers.MediaHandler) *gin.Engine {
 	r := gin.Default()
 
 	// Add CORS middleware
@@ -33,6 +33,14 @@ func SetupRouter(categoryHandler *handlers.CategoryHandler, mediaHandler *handle
 
 	v1 := r.Group("/api/v1")
 	{
+		// Auth routes
+		auth := v1.Group("/auth")
+		{
+			auth.POST("/register", authHandler.Register)
+			auth.POST("/login", authHandler.Login)
+		}
+
+		// Categories routes
 		categories := v1.Group("/categories")
 		{
 			categories.GET("", categoryHandler.GetCategories)
@@ -41,18 +49,17 @@ func SetupRouter(categoryHandler *handlers.CategoryHandler, mediaHandler *handle
 			categories.DELETE("/:id", categoryHandler.DeleteCategory)
 		}
 
-		// Register media routes
+		// Media routes
 		media := v1.Group("/media")
 		{
-			media.GET("", mediaHandler.ListMedia)
-			media.POST("", mediaHandler.CreateMedia)
-			media.GET("/:id", mediaHandler.GetMedia)
-			media.PUT("/:id", mediaHandler.UpdateMedia)
-			media.DELETE("/:id", mediaHandler.DeleteMedia)
+			media.GET("", mediaHandler.List)
+			media.POST("", mediaHandler.Create)
+			media.GET("/:id", mediaHandler.GetByID)
+			media.PUT("/:id", mediaHandler.Update)
+			media.DELETE("/:id", mediaHandler.Delete)
 
 			// Note routes
-			media.GET("/:id/notes", mediaHandler.GetNotes)
-			media.POST("/:id/notes", mediaHandler.CreateNote)
+			media.POST("/:id/notes", mediaHandler.AddNote)
 			media.PUT("/:id/notes/:noteId", mediaHandler.UpdateNote)
 			media.DELETE("/:id/notes/:noteId", mediaHandler.DeleteNote)
 		}

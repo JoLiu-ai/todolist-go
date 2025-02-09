@@ -2,29 +2,26 @@ FROM golang:1.22-alpine
 
 WORKDIR /app
 
-# 安装必要的系统依赖
-RUN apk add --no-cache gcc musl-dev git
+# 设置环境变量
+ENV GOTOOLCHAIN=local
 
-# 安装指定版本的 air
-RUN go install github.com/cosmtrek/air@v1.44.0
-
-# 创建 tmp 目录
-RUN mkdir -p /app/tmp
+# 安装依赖
+RUN apk add --no-cache git
 
 # 复制 go.mod 和 go.sum
-COPY go.mod go.sum ./
+COPY backend/go.mod backend/go.sum ./
 
-# 预先下载依赖
-RUN go mod download
+# 下载并验证依赖
+RUN go mod download && go mod verify
 
 # 复制源代码
-COPY . .
+COPY backend/ .
 
-# 确保依赖是最新的
-RUN go mod tidy
+# 构建应用
+RUN go mod tidy && go build -o main ./cmd/server
 
 # 暴露端口
 EXPOSE 8080
 
-# 使用 air 运行应用（支持热重载）
-CMD ["air", "-c", ".air.toml"] 
+# 运行应用
+CMD ["./main"] 

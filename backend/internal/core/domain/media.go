@@ -2,6 +2,8 @@ package domain
 
 import (
 	"time"
+
+	"github.com/lib/pq"
 )
 
 // MediaType 定义了媒体类型
@@ -9,7 +11,7 @@ type MediaType string
 
 const (
 	MediaTypeBook  MediaType = "book"
-	MediaTypeMovie MediaType = "movie"
+	MediaTypeVideo MediaType = "video"
 )
 
 // MediaStatus 定义了媒体状态
@@ -17,34 +19,34 @@ type MediaStatus string
 
 const (
 	MediaStatusWishlist MediaStatus = "wishlist" // 想看/想读
-	MediaStatusOngoing  MediaStatus = "ongoing"  // 在看/在读
-	MediaStatusFinished MediaStatus = "finished" // 已看/已读
-	MediaStatusDropped  MediaStatus = "dropped"  // 弃看/弃读
+	MediaStatusReading  MediaStatus = "reading"  // 在看/在读
+	MediaStatusDone     MediaStatus = "done"     // 已看/已读
 )
 
 // Media 表示一个媒体项目（书籍或电影）
 type Media struct {
-	ID           uint          `json:"id" gorm:"primaryKey"`
-	Type         MediaType     `json:"type" gorm:"not null"` // book/movie
-	DisplayName  Name          `json:"display_name" gorm:"embedded;embeddedPrefix:display_name_"`
-	OriginalName *Name         `json:"original_name,omitempty" gorm:"embedded;embeddedPrefix:original_name_"`
-	Description  *Text         `json:"description,omitempty" gorm:"embedded;embeddedPrefix:description_"`
-	Creator      *string       `json:"creator,omitempty"`                         // 作者/导演（可选）
-	Cover        string        `json:"cover,omitempty"`                           // 封面图片URL
-	ResourceLink string        `json:"resource_link,omitempty"`                   // 资源链接
-	Status       MediaStatus   `json:"status" gorm:"not null;default:'wishlist'"` // 状态
-	Rating       float32       `json:"rating" gorm:"default:0"`                   // 评分 (0-5)
-	Comment      *Text         `json:"comment,omitempty" gorm:"embedded;embeddedPrefix:comment_"`
-	StartDate    *time.Time    `json:"start_date,omitempty"`              // 开始时间
-	FinishDate   *time.Time    `json:"finish_date,omitempty"`             // 完成时间
-	Tags         []string      `json:"tags,omitempty" gorm:"type:text[]"` // 标签
-	CategoryID   uint          `json:"category_id"`
-	Category     *Category     `json:"category,omitempty" gorm:"foreignKey:CategoryID"`
-	Notes        []*Note       `json:"notes,omitempty" gorm:"foreignKey:MediaID"`         // 笔记列表
-	BookDetails  *BookDetails  `json:"book_details,omitempty" gorm:"foreignKey:MediaID"`  // 书籍详情
-	MovieDetails *MovieDetails `json:"movie_details,omitempty" gorm:"foreignKey:MediaID"` // 电影详情
-	CreatedAt    time.Time     `json:"created_at" gorm:"autoCreateTime"`
-	UpdatedAt    time.Time     `json:"updated_at" gorm:"autoUpdateTime"`
+	ID           uint           `json:"id" gorm:"primaryKey"`
+	UserID       uint           `json:"user_id" gorm:"not null"` // 所属用户ID
+	Type         MediaType      `json:"type" gorm:"not null"`    // book/movie
+	DisplayName  Name           `json:"display_name" gorm:"embedded;embeddedPrefix:display_name_"`
+	OriginalName *Name          `json:"original_name,omitempty" gorm:"embedded;embeddedPrefix:original_name_"`
+	Description  *Text          `json:"description,omitempty" gorm:"embedded;embeddedPrefix:description_"`
+	Creator      *string        `json:"creator,omitempty"`                         // 作者/导演（可选）
+	Cover        string         `json:"cover,omitempty"`                           // 封面图片URL
+	ResourceLink string         `json:"resource_link,omitempty"`                   // 资源链接
+	Status       MediaStatus    `json:"status" gorm:"not null;default:'wishlist'"` // 状态
+	Rating       float32        `json:"rating" gorm:"default:0"`                   // 评分 (0-5)
+	Comment      *Text          `json:"comment,omitempty" gorm:"embedded;embeddedPrefix:comment_"`
+	StartDate    *time.Time     `json:"start_date,omitempty"`              // 开始时间
+	FinishDate   *time.Time     `json:"finish_date,omitempty"`             // 完成时间
+	Tags         pq.StringArray `json:"tags,omitempty" gorm:"type:text[]"` // 标签
+	CategoryID   uint           `json:"category_id"`
+	Category     *Category      `json:"category,omitempty" gorm:"foreignKey:CategoryID"`
+	Notes        []*Note        `json:"notes,omitempty" gorm:"foreignKey:MediaID"`         // 笔记列表
+	BookDetails  *BookDetails   `json:"book_details,omitempty" gorm:"foreignKey:MediaID"`  // 书籍详情
+	MovieDetails *MovieDetails  `json:"movie_details,omitempty" gorm:"foreignKey:MediaID"` // 电影详情
+	CreatedAt    time.Time      `json:"created_at" gorm:"autoCreateTime"`
+	UpdatedAt    time.Time      `json:"updated_at" gorm:"autoUpdateTime"`
 }
 
 // Name 表示双语名称
@@ -93,7 +95,7 @@ func NewBook(displayName Name, author *string) *Media {
 // NewMovie 创建一个新的电影
 func NewMovie(displayName Name, director *string) *Media {
 	return &Media{
-		Type:        MediaTypeMovie,
+		Type:        MediaTypeVideo,
 		DisplayName: displayName,
 		Creator:     director,
 		Status:      MediaStatusWishlist,
@@ -106,11 +108,11 @@ func (m *Media) UpdateStatus(status MediaStatus) {
 	now := time.Now()
 
 	switch status {
-	case MediaStatusOngoing:
+	case MediaStatusReading:
 		if m.StartDate == nil {
 			m.StartDate = &now
 		}
-	case MediaStatusFinished:
+	case MediaStatusDone:
 		if m.FinishDate == nil {
 			m.FinishDate = &now
 		}

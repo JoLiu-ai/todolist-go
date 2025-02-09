@@ -1,11 +1,22 @@
 import axios from 'axios';
 import { Media, MediaType } from '../types/media';
 
-const client = axios.create({
-  baseURL: '/api/v1',
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080';
+
+export const client = axios.create({
+  baseURL: `${API_URL}/api/v1`,
   headers: {
     'Content-Type': 'application/json',
   },
+});
+
+// Add request interceptor to include auth token
+client.interceptors.request.use((config) => {
+  const token = localStorage.getItem('token');
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
 });
 
 export interface GetMediaParams {

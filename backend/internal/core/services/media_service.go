@@ -73,12 +73,12 @@ func (s *MediaService) CountNotes(ctx context.Context, mediaID uint) (int64, err
 
 func (s *MediaService) AddNote(ctx context.Context, mediaID uint, note *domain.Note) error {
 	note.MediaID = mediaID
-	return s.repo.CreateNote(ctx, note)
+	return s.repo.CreateNote(ctx, mediaID, note)
 }
 
 func (s *MediaService) UpdateNote(ctx context.Context, mediaID uint, note *domain.Note) error {
 	note.MediaID = mediaID
-	return s.repo.UpdateNote(ctx, note)
+	return s.repo.UpdateNote(ctx, mediaID, note)
 }
 
 func (s *MediaService) DeleteNote(ctx context.Context, mediaID uint, noteID uint) error {

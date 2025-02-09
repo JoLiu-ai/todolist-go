@@ -10,56 +10,42 @@ type TagService struct {
 }
 
 func NewTagService(repo ports.TagRepository) *TagService {
-	return &TagService{repo: repo}
-}
-
-func (s *TagService) CreateTag(name string) (*domain.Tag, error) {
-	tag := domain.NewTag(name)
-	err := s.repo.Create(tag)
-	if err != nil {
-		return nil, err
+	return &TagService{
+		repo: repo,
 	}
-	return tag, nil
 }
 
-func (s *TagService) UpdateTag(id int, name string) (*domain.Tag, error) {
-	tag, err := s.repo.GetByID(id)
-	if err != nil {
-		return nil, err
+func (s *TagService) CreateTag(name string) error {
+	tag := &domain.Tag{
+		Name: name,
 	}
-
-	tag.Update(name)
-	err = s.repo.Update(tag)
-	if err != nil {
-		return nil, err
-	}
-	return tag, nil
+	return s.repo.Create(tag)
 }
 
-func (s *TagService) DeleteTag(id int) error {
-	return s.repo.Delete(id)
-}
-
-func (s *TagService) GetAllTags() ([]*domain.Tag, error) {
+func (s *TagService) GetAllTags() ([]domain.Tag, error) {
 	return s.repo.GetAll()
 }
 
-func (s *TagService) GetMediaTags(mediaID int) ([]*domain.Tag, error) {
-	return s.repo.GetMediaTags(mediaID)
+func (s *TagService) GetTagByID(id uint) (*domain.Tag, error) {
+	return s.repo.GetByID(id)
 }
 
-func (s *TagService) AddMediaTag(mediaID, tagID int) error {
-	err := s.repo.AddMediaTag(mediaID, tagID)
-	if err != nil {
-		return err
-	}
-	return s.repo.IncrementCount(tagID)
+func (s *TagService) UpdateTag(tag *domain.Tag) error {
+	return s.repo.Update(tag)
 }
 
-func (s *TagService) RemoveMediaTag(mediaID, tagID int) error {
-	err := s.repo.RemoveMediaTag(mediaID, tagID)
-	if err != nil {
-		return err
-	}
-	return s.repo.DecrementCount(tagID)
+func (s *TagService) DeleteTag(id uint) error {
+	return s.repo.Delete(id)
+}
+
+func (s *TagService) GetTagsByMediaID(mediaID uint) ([]domain.Tag, error) {
+	return s.repo.GetByMediaID(mediaID)
+}
+
+func (s *TagService) AddTagToMedia(mediaID uint, tagID uint) error {
+	return s.repo.AddTagToMedia(mediaID, tagID)
+}
+
+func (s *TagService) RemoveTagFromMedia(mediaID uint, tagID uint) error {
+	return s.repo.RemoveTagFromMedia(mediaID, tagID)
 }

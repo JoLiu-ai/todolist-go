@@ -3,7 +3,7 @@ package domain
 import "time"
 
 type Category struct {
-	ID        int       `json:"id" gorm:"column:id" gorm:"primaryKey"`
+	ID        int       `json:"id" gorm:"column:id;primaryKey"`
 	Name      string    `json:"name" gorm:"column:name"`
 	Color     string    `json:"color" gorm:"column:color"`
 	Icon      string    `json:"icon" gorm:"column:icon"`
@@ -11,7 +11,6 @@ type Category struct {
 	Count     int       `json:"count" gorm:"-"`
 	CreatedAt time.Time `json:"createdAt" gorm:"column:created_at"`
 	UpdatedAt time.Time `json:"updatedAt" gorm:"column:updated_at"`
-	MediaType string    `json:"mediaType" gorm:"column:media_type"`
 }
 
 // TableName specifies the table name for GORM
@@ -29,7 +28,6 @@ func NewCategory(name, mediaType string) *Category {
 		Count:     0,
 		CreatedAt: now,
 		UpdatedAt: now,
-		MediaType: mediaType,
 	}
 }
 

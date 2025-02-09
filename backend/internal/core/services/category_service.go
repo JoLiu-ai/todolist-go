@@ -10,41 +10,40 @@ type CategoryService struct {
 }
 
 func NewCategoryService(repo ports.CategoryRepository) *CategoryService {
-	return &CategoryService{repo: repo}
-}
-
-func (s *CategoryService) CreateCategory(name, mediaType string) (*domain.Category, error) {
-	category := &domain.Category{
-		Name:      name,
-		MediaType: mediaType,
+	return &CategoryService{
+		repo: repo,
 	}
-	err := s.repo.Create(category)
-	return category, err
 }
 
-func (s *CategoryService) GetCategoriesByType(mediaType string) ([]domain.Category, error) {
-	return s.repo.FindAllByType(mediaType)
+func (s *CategoryService) CreateCategory(name, mediaType string) error {
+	category := domain.NewCategory(name, mediaType)
+	return s.repo.Create(category)
 }
 
-func (s *CategoryService) UpdateCategory(id int, name string) (*domain.Category, error) {
-	category, err := s.repo.FindByID(id)
-	if err != nil {
-		return nil, err
-	}
-
-	category.Name = name
-	err = s.repo.Update(category)
-	return category, err
+func (s *CategoryService) GetAllCategories() ([]domain.Category, error) {
+	return s.repo.GetAll()
 }
 
-func (s *CategoryService) DeleteCategory(id int) error {
+func (s *CategoryService) GetCategoryByID(id uint) (*domain.Category, error) {
+	return s.repo.GetByID(id)
+}
+
+func (s *CategoryService) UpdateCategory(category *domain.Category) error {
+	return s.repo.Update(category)
+}
+
+func (s *CategoryService) DeleteCategory(id uint) error {
 	return s.repo.Delete(id)
 }
 
-func (s *CategoryService) IncrementCategoryCount(id int) error {
+func (s *CategoryService) GetCategoriesByType(mediaType string) ([]domain.Category, error) {
+	return s.repo.GetByType(mediaType)
+}
+
+func (s *CategoryService) IncrementCategoryCount(id uint) error {
 	return s.repo.IncrementCount(id)
 }
 
-func (s *CategoryService) DecrementCategoryCount(id int) error {
+func (s *CategoryService) DecrementCategoryCount(id uint) error {
 	return s.repo.DecrementCount(id)
 }
