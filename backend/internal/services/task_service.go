@@ -1,8 +1,8 @@
 package services
 
 import (
+	"cute-todo/backend/internal/models"
 	"cute-todo/backend/internal/repository"
-	"cute-todo/backend/models"
 	"fmt"
 )
 

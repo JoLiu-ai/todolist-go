@@ -3,7 +3,7 @@ package services
 import (
 	"context"
 
-	"cute-todo/backend/models"
+	"cute-todo/backend/internal/models"
 )
 
 // MediaService defines the interface for media-related operations
@@ -106,4 +106,4 @@ func (s *mediaService) GetMovieDetails(ctx context.Context, mediaID uint) (*mode
 
 func (s *mediaService) UpdateMovieDetails(ctx context.Context, details *models.MovieDetails) error {
 	return s.repo.UpdateMovieDetails(ctx, details)
-} 
+}

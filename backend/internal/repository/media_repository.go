@@ -3,7 +3,7 @@ package repository
 import (
 	"context"
 
-	"cute-todo/backend/models"
+	"cute-todo/backend/internal/models"
 
 	"gorm.io/gorm"
 )
@@ -134,7 +134,7 @@ func (r *GormMediaRepository) CountNotes(ctx context.Context, mediaID uint) (int
 }
 
 func (r *GormMediaRepository) CreateNote(ctx context.Context, mediaID uint, note *models.Note) error {
-	note.MediaID = mediaID
+	note.MediaID = int(mediaID)
 	return r.db.WithContext(ctx).Create(note).Error
 }
 
@@ -178,4 +178,46 @@ func (r *GormMediaRepository) GetMovieDetails(ctx context.Context, mediaID uint)
 
 func (r *GormMediaRepository) UpdateMovieDetails(ctx context.Context, details *models.MovieDetails) error {
 	return r.db.WithContext(ctx).Save(details).Error
+}
+
+// GetRecent 获取用户最近的媒体记录
+func (r *GormMediaRepository) GetRecent(ctx context.Context, userID uint, limit int) ([]*models.Media, error) {
+	var media []*models.Media
+	err := r.db.WithContext(ctx).Where("user_id = ?", userID).Order("updated_at DESC").Limit(limit).Find(&media).Error
+	return media, err
+}
+
+// GetStats 获取用户的媒体统计信息
+func (r *GormMediaRepository) GetStats(ctx context.Context, userID uint) (*models.MediaStats, error) {
+	var stats models.MediaStats
+
+	// 获取书籍总数
+	if err := r.db.Model(&models.Media{}).
+		Where("user_id = ? AND type = ?", userID, "book").
+		Count(&stats.TotalBooks).Error; err != nil {
+		return nil, err
+	}
+
+	// 获取阅读中的书籍数
+	if err := r.db.Model(&models.Media{}).
+		Where("user_id = ? AND type = ? AND status = ?", userID, "book", "reading").
+		Count(&stats.ReadingBooks).Error; err != nil {
+		return nil, err
+	}
+
+	// 获取电影总数
+	if err := r.db.Model(&models.Media{}).
+		Where("user_id = ? AND type = ?", userID, "movie").
+		Count(&stats.TotalMovies).Error; err != nil {
+		return nil, err
+	}
+
+	// 获取观看中的电影数
+	if err := r.db.Model(&models.Media{}).
+		Where("user_id = ? AND type = ? AND status = ?", userID, "movie", "watching").
+		Count(&stats.WatchingMovies).Error; err != nil {
+		return nil, err
+	}
+
+	return &stats, nil
 }

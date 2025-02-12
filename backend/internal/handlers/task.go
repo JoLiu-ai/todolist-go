@@ -7,8 +7,8 @@ import (
 	"net/http"
 	"strconv"
 
+	"cute-todo/backend/internal/models"
 	"cute-todo/backend/internal/services"
-	"cute-todo/backend/models"
 
 	"github.com/gin-gonic/gin"
 )

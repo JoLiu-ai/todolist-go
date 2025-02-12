@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"time"
 
-	"cute-todo/backend/models"
+	"cute-todo/backend/internal/models"
 
 	"gorm.io/gorm"
 )

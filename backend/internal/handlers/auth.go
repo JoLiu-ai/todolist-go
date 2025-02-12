@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"time"
 
-	"cute-todo/backend/models"
+	"cute-todo/backend/internal/models"
 
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"

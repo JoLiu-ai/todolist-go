@@ -1,7 +1,7 @@
 package repository
 
 import (
-	"cute-todo/backend/models"
+	"cute-todo/backend/internal/models"
 
 	"gorm.io/gorm"
 )
