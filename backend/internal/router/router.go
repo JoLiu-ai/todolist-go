@@ -12,14 +12,22 @@ func SetupRouter(
 	authHandler *handlers.AuthHandler,
 	mediaHandler *handlers.MediaHandler,
 	taskHandler *handlers.TaskHandler,
+	knowledgeHandler *handlers.KnowledgeHandler,
 ) *gin.Engine {
 	router := gin.Default()
 
 	// CORS 中间件
 	router.Use(func(c *gin.Context) {
-		c.Writer.Header().Set("Access-Control-Allow-Origin", "*")
+		origin := c.Request.Header.Get("Origin")
+		if origin == "" {
+			origin = "*"
+		}
+		c.Writer.Header().Set("Access-Control-Allow-Origin", origin)
 		c.Writer.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
-		c.Writer.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+		c.Writer.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Requested-With, API-Version")
+		c.Writer.Header().Set("Access-Control-Expose-Headers", "Authorization")
+		c.Writer.Header().Set("Access-Control-Allow-Credentials", "true")
+		c.Writer.Header().Set("Access-Control-Max-Age", "86400") // 24 hours
 
 		if c.Request.Method == "OPTIONS" {
 			c.AbortWithStatus(204)
@@ -57,6 +65,12 @@ func SetupRouter(
 		protected := v1.Group("")
 		protected.Use(middleware.AuthMiddleware())
 		{
+			// Auth routes
+			auth := protected.Group("/auth")
+			{
+				auth.GET("/profile", authHandler.GetProfile)
+			}
+
 			// 媒体相关路由
 			media := protected.Group("/media")
 			{
@@ -85,6 +99,16 @@ func SetupRouter(
 				tasks.GET("/:id", taskHandler.GetTask)
 				tasks.PUT("/:id", taskHandler.UpdateTask)
 				tasks.DELETE("/:id", taskHandler.DeleteTask)
+			}
+
+			// Knowledge routes
+			knowledge := protected.Group("/knowledge")
+			{
+				knowledge.POST("", knowledgeHandler.CreateKnowledge)
+				knowledge.GET("", knowledgeHandler.ListKnowledge)
+				knowledge.GET("/:id", knowledgeHandler.GetKnowledge)
+				knowledge.PUT("/:id", knowledgeHandler.UpdateKnowledge)
+				knowledge.DELETE("/:id", knowledgeHandler.DeleteKnowledge)
 			}
 		}
 	}

@@ -1,1 +1,0 @@
-ALTER TABLE tasks ADD COLUMN category VARCHAR(50) DEFAULT 'other'; 

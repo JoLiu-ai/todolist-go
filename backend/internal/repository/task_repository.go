@@ -1,7 +1,7 @@
 package repository
 
 import (
-	"fmt"
+	"context"
 	"time"
 
 	"cute-todo/backend/internal/models"
@@ -9,98 +9,119 @@ import (
 	"gorm.io/gorm"
 )
 
-type GormTaskRepository struct {
+type TaskRepository struct {
 	db *gorm.DB
 }
 
-func NewGormTaskRepository(db *gorm.DB) *GormTaskRepository {
-	return &GormTaskRepository{db: db}
+func NewTaskRepository(db *gorm.DB) *TaskRepository {
+	return &TaskRepository{db: db}
 }
 
-func (r *GormTaskRepository) CreateTask(task *models.Task) error {
-	return r.db.Create(task).Error
+func (r *TaskRepository) Create(ctx context.Context, task *models.Task) error {
+	return r.db.WithContext(ctx).Create(task).Error
 }
 
-func (r *GormTaskRepository) GetTask(id uint, userID uint) (*models.Task, error) {
-	fmt.Printf("\n=== TaskRepository.GetTask called ===\n")
-	fmt.Printf("执行数据库查询 - ID: %d, 用户ID: %d\n", id, userID)
-
-	var task models.Task
-	result := r.db.Where("id = ? AND user_id = ?", id, userID).First(&task)
+func (r *TaskRepository) Update(ctx context.Context, id int, task *models.Task) error {
+	result := r.db.WithContext(ctx).Model(&models.Task{}).
+		Where("id = ? AND user_id = ?", id, task.UserID).
+		Updates(map[string]interface{}{
+			"title":       task.Title,
+			"description": task.Description,
+			"status":      task.Status,
+			"priority":    task.Priority,
+			"category":    task.Category,
+			"due_date":    task.DueDate,
+		})
 
 	if result.Error != nil {
-		fmt.Printf("数据库错误: %v\n", result.Error)
-		return nil, result.Error
+		return result.Error
 	}
 
-	fmt.Printf("查询到的任务: %+v\n", task)
+	if result.RowsAffected == 0 {
+		return gorm.ErrRecordNotFound
+	}
+
+	return nil
+}
+
+func (r *TaskRepository) Delete(ctx context.Context, id, userID int) error {
+	result := r.db.WithContext(ctx).
+		Where("id = ? AND user_id = ?", id, userID).
+		Delete(&models.Task{})
+
+	if result.Error != nil {
+		return result.Error
+	}
+
+	if result.RowsAffected == 0 {
+		return gorm.ErrRecordNotFound
+	}
+
+	return nil
+}
+
+func (r *TaskRepository) GetByID(ctx context.Context, id, userID int) (*models.Task, error) {
+	var task models.Task
+	err := r.db.WithContext(ctx).
+		Where("id = ? AND user_id = ?", id, userID).
+		First(&task).Error
+	if err != nil {
+		return nil, err
+	}
 	return &task, nil
 }
 
-func (r *GormTaskRepository) ListTasks(userID uint, status string) ([]models.Task, error) {
+func (r *TaskRepository) List(ctx context.Context, userID int) ([]models.Task, error) {
 	var tasks []models.Task
-	query := r.db.Where("user_id = ?", userID)
-	if status != "" {
-		query = query.Where("status = ?", status)
-	}
-	if err := query.Order("priority desc, due_date asc").Find(&tasks).Error; err != nil {
-		return nil, err
-	}
-	return tasks, nil
-}
-
-func (r *GormTaskRepository) UpdateTask(id uint, userID uint, updates map[string]interface{}) error {
-	return r.db.Model(&models.Task{}).Where("id = ? AND user_id = ?", id, userID).Updates(updates).Error
-}
-
-func (r *GormTaskRepository) DeleteTask(id uint, userID uint) error {
-	return r.db.Where("id = ? AND user_id = ?", id, userID).Delete(&models.Task{}).Error
-}
-
-func (r *GormTaskRepository) GetTodayTasks(userID uint) ([]models.Task, error) {
-	var tasks []models.Task
-	today := time.Now()
-	startOfDay := time.Date(today.Year(), today.Month(), today.Day(), 0, 0, 0, 0, today.Location())
-	endOfDay := startOfDay.Add(24 * time.Hour)
-
-	err := r.db.Where("user_id = ? AND due_date BETWEEN ? AND ?", userID, startOfDay, endOfDay).
-		Order("priority desc").
+	err := r.db.WithContext(ctx).
+		Where("user_id = ?", userID).
+		Order("created_at desc").
 		Find(&tasks).Error
-
 	return tasks, err
 }
 
-func (r *GormTaskRepository) GetTaskStats(userID uint) (*models.TaskStats, error) {
+func (r *TaskRepository) GetTodayTasks(ctx context.Context, userID int) ([]models.Task, error) {
+	var tasks []models.Task
+	today := time.Now().Format("2006-01-02")
+	err := r.db.WithContext(ctx).
+		Where("user_id = ? AND DATE(due_date) = ?", userID, today).
+		Order("priority desc").
+		Find(&tasks).Error
+	return tasks, err
+}
+
+func (r *TaskRepository) GetTaskStats(ctx context.Context, userID int) (*models.TaskStats, error) {
 	var stats models.TaskStats
-	now := time.Now()
+	today := time.Now().Format("2006-01-02")
 
-	// 使用事务确保统计数据的一致性
-	err := r.db.Transaction(func(tx *gorm.DB) error {
-		// 获取总任务数
-		if err := tx.Model(&models.Task{}).Where("user_id = ?", userID).Count(&stats.TotalTasks).Error; err != nil {
-			return err
-		}
+	// 获取总任务数
+	err := r.db.WithContext(ctx).Model(&models.Task{}).
+		Where("user_id = ?", userID).
+		Count(&stats.TotalTasks).Error
+	if err != nil {
+		return nil, err
+	}
 
-		// 获取已完成任务数
-		if err := tx.Model(&models.Task{}).Where("user_id = ? AND status = ?", userID, "completed").Count(&stats.CompletedTasks).Error; err != nil {
-			return err
-		}
+	// 获取已完成任务数
+	err = r.db.WithContext(ctx).Model(&models.Task{}).
+		Where("user_id = ? AND status = ?", userID, "completed").
+		Count(&stats.CompletedTasks).Error
+	if err != nil {
+		return nil, err
+	}
 
-		// 获取待处理任务数
-		if err := tx.Model(&models.Task{}).Where("user_id = ? AND status = ?", userID, "pending").Count(&stats.PendingTasks).Error; err != nil {
-			return err
-		}
+	// 获取待办任务数
+	err = r.db.WithContext(ctx).Model(&models.Task{}).
+		Where("user_id = ? AND status = ?", userID, "pending").
+		Count(&stats.PendingTasks).Error
+	if err != nil {
+		return nil, err
+	}
 
-		// 获取已逾期任务数（未完成且已过期的任务）
-		if err := tx.Model(&models.Task{}).
-			Where("user_id = ? AND status != ? AND due_date < ?", userID, "completed", now).
-			Count(&stats.OverdueTasks).Error; err != nil {
-			return err
-		}
-
-		return nil
-	})
-
+	// 获取过期任务数
+	err = r.db.WithContext(ctx).Model(&models.Task{}).
+		Where("user_id = ? AND status != ? AND DATE(due_date) < ?", userID, "completed", today).
+		Count(&stats.OverdueTasks).Error
 	if err != nil {
 		return nil, err
 	}

@@ -8,7 +8,7 @@ DOCKER_CMD = docker compose -f $(DOCKER_COMPOSE)
 ENV_FILE = docker/local/.env
 ENV_EXAMPLE_FILE = docker/local/.env.example
 
-.PHONY: up down build rebuild logs clean help export-env setup up-build ps restart-frontend restart-app docker-build docker-up docker-down migrate-up migrate-down lint fmt
+.PHONY: up down build rebuild logs clean help export-env setup up-build ps restart-frontend restart-backend docker-build docker-up docker-down migrate-up migrate-down lint fmt tidy docker-dev
 
 # Default target
 .DEFAULT_GOAL := help
@@ -95,8 +95,8 @@ ps: ## Show running containers
 restart-frontend: ## Restart frontend container
 	$(DOCKER_CMD) restart frontend
 
-restart-app: ## Restart app container
-	$(DOCKER_CMD) restart app
+restart-backend: ## Restart backend container
+	$(DOCKER_CMD) restart backend
 
 run: ## Run backend application
 	cd backend && go run cmd/main.go
@@ -115,4 +115,15 @@ lint: ## Run backend linter
 	cd backend && golangci-lint run
 
 fmt: ## Format backend code
-	cd backend && go fmt ./... 
+	cd backend && go fmt ./...
+
+tidy:
+	$(DOCKER_CMD) exec backend sh -c "cd /app && go mod tidy"
+	$(DOCKER_CMD) restart backend
+
+docker-up: ## Quick build and start services without setup checks
+	$(DOCKER_CMD) up --build -d
+
+docker-dev: ## Build and start services using cache (faster, no dependency downloads)
+	$(DOCKER_CMD) build --no-deps
+	$(DOCKER_CMD) up -d 

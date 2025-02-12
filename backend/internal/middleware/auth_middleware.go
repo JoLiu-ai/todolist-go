@@ -55,15 +55,15 @@ func AuthMiddleware() gin.HandlerFunc {
 
 		// 将用户信息存储在上下文中
 		if userIDFloat, ok := claims["user_id"].(float64); ok {
-			userID := uint(userIDFloat)
-			fmt.Printf("Converting user_id from float64 (%v) to uint (%v)\n", userIDFloat, userID)
+			userID := int(userIDFloat)
+			fmt.Printf("Converting user_id from float64 (%v) to int (%v)\n", userIDFloat, userID)
 			if userID == 0 {
 				fmt.Printf("Warning: user_id is 0 after conversion\n")
 				c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid token: user_id cannot be 0"})
 				c.Abort()
 				return
 			}
-			c.Set("user_id", userID)
+			c.Set("userID", userID)
 		} else {
 			fmt.Printf("Failed to get user_id from claims. Type: %T, Value: %v\n", claims["user_id"], claims["user_id"])
 			c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid token: missing or invalid user_id"})

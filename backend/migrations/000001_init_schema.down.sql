@@ -1,5 +1,7 @@
--- 删除任务表
+-- 按照依赖关系的反序删除表
+DROP TABLE IF EXISTS notes;
+DROP TABLE IF EXISTS movie_details;
+DROP TABLE IF EXISTS book_details;
+DROP TABLE IF EXISTS media;
 DROP TABLE IF EXISTS tasks;
-
--- 删除用户表
 DROP TABLE IF EXISTS users; 

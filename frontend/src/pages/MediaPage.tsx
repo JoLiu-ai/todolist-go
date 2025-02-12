@@ -1,318 +1,124 @@
 import React, { useState, useEffect } from 'react';
-import { Media, MediaType, Category } from '../types/media';
-import MediaCard from '@/components/MediaCard';
-import MediaListItem from '@/components/MediaListItem';
-import MediaForm from '@/components/MediaForm';
-import MediaDetail from '@/components/MediaDetail';
-import Modal from '@/components/Modal';
-import PomodoroTimer from '@/components/PomodoroTimer';
-import { useParams } from 'react-router-dom';
-import { api } from '@/api/client';
+import { useLocation, Link } from 'react-router-dom';
+import { BookOpenIcon, FilmIcon, PlusIcon } from '@heroicons/react/24/outline';
+import Layout from '../components/Layout';
+import { api } from '../api/client';
+import { Media, MediaType } from '../types/media';
 
-interface MediaItem {
-  id: number;
-  title: string;
-  type: string;
-  status: string;
-  notes: Note[];
-}
-
-interface Note {
-  id: number;
-  content: string;
-}
-
-interface CategoryItem {
-  id: number;
-  name: string;
-  type: string;
+interface MediaStats {
+  total_books: number;
+  reading_books: number;
+  total_movies: number;
+  watching_movies: number;
 }
 
 interface MediaPageProps {
-  mediaType: MediaType;
+  type: MediaType;
 }
 
-export default function MediaPage() {
-  const { mediaType } = useParams<{ mediaType: string }>();
-  const [items, setItems] = useState<MediaItem[]>([]);
-  const [categories, setCategories] = useState<CategoryItem[]>([]);
-  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
-  const [selectedItem, setSelectedItem] = useState<MediaItem | null>(null);
-  const [showForm, setShowForm] = useState(false);
-  const [editingItem, setEditingItem] = useState<MediaItem | null>(null);
-  const [isPomodoroOpen, setIsPomodoroOpen] = useState(false);
-  const token = localStorage.getItem('token');
+export default function MediaPage({ type }: MediaPageProps) {
+  const [items, setItems] = useState<Media[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
 
   useEffect(() => {
-    if (mediaType) {
-      fetchMedia();
-    }
-  }, [mediaType]);
-
-  const fetchMedia = async () => {
-    if (!mediaType) return;
-    
-    try {
-      const mediaResponse = await fetch(`${api.media.base}?type=${mediaType}`);
-      const mediaData = await mediaResponse.json();
-      setItems(mediaData);
-
-      // TODO: Add categories endpoint to API_ENDPOINTS
-      const categoriesResponse = await fetch(`${api.media.base}/categories?type=${mediaType}`);
-      const categoriesData = await categoriesResponse.json();
-      setCategories(categoriesData);
-    } catch (error) {
-      console.error('Error fetching data:', error);
-    }
-  };
-
-  const handleViewDetail = async (id: number) => {
-    try {
-      const response = await fetch(api.media.detail(id));
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+    const fetchMedia = async () => {
+      try {
+        const data = await api.media.getAll({ type });
+        setItems(data || []);
+      } catch (err) {
+        console.error('获取媒体列表失败:', err);
+        setError(err instanceof Error ? err.message : '获取媒体列表失败，请稍后重试');
+      } finally {
+        setLoading(false);
       }
-      const item = await response.json();
-      setSelectedItem(item);
-    } catch (error) {
-      console.error('Error fetching item details:', error);
-    }
-  };
+    };
 
-  const handleAddNew = () => {
-    setEditingItem(null);
-    setShowForm(true);
-  };
-
-  const handleEdit = (id: number) => {
-    const item = items.find((item: MediaItem) => item.id === id);
-    if (item) {
-      setEditingItem(item);
-      setShowForm(true);
-    }
-  };
-
-  const handleDelete = async (id: number) => {
-    if (!window.confirm('确定要删除这条记录吗？')) {
-      return;
-    }
-
-    try {
-      await fetch(api.media.detail(id), {
-        method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-      });
-      await fetchMedia();
-      setSelectedItem(null);
-    } catch (error) {
-      console.error('Error deleting item:', error);
-    }
-  };
-
-  const handleSubmit = async (data: Partial<MediaItem>) => {
-    try {
-      const url = editingItem ? api.media.detail(editingItem.id) : api.media.base;
-      const method = editingItem ? 'PUT' : 'POST';
-
-      const response = await fetch(url, {
-        method,
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
-        body: JSON.stringify(data),
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to save media');
-      }
-
-      await fetchMedia();
-      setEditingItem(null);
-      setShowForm(false);
-    } catch (error) {
-      console.error('Error saving media:', error);
-    }
-  };
-
-  const handleAddNote = async (content: string) => {
-    if (!selectedItem) return;
-
-    try {
-      const response = await fetch(api.media.notes(selectedItem.id), {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
-        body: JSON.stringify({ content }),
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to add note');
-      }
-
-      const mediaResponse = await fetch(api.media.detail(selectedItem.id));
-      const updatedMedia = await mediaResponse.json();
-      setItems(items.map((item: MediaItem) => item.id === selectedItem.id ? updatedMedia : item));
-      setSelectedItem(updatedMedia);
-    } catch (error) {
-      console.error('Error adding note:', error);
-    }
-  };
-
-  const handleEditNote = async (noteId: number, content: string) => {
-    if (!selectedItem) return;
-
-    try {
-      const response = await fetch(`${api.media.notes(selectedItem.id)}/${noteId}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
-        body: JSON.stringify({ content }),
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to update note');
-      }
-
-      const updatedMedia = { ...selectedItem };
-      const noteIndex = updatedMedia.notes.findIndex((note: Note) => note.id === noteId);
-      if (noteIndex !== -1) {
-        updatedMedia.notes[noteIndex].content = content;
-        setItems(items.map((item: MediaItem) => item.id === selectedItem.id ? updatedMedia : item));
-        setSelectedItem(updatedMedia);
-      }
-    } catch (error) {
-      console.error('Error updating note:', error);
-    }
-  };
-
-  const handleDeleteNote = async (noteId: number) => {
-    if (!selectedItem) return;
-
-    try {
-      const response = await fetch(`${api.media.notes(selectedItem.id)}/${noteId}`, {
-        method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to delete note');
-      }
-
-      const updatedMedia = { ...selectedItem };
-      updatedMedia.notes = updatedMedia.notes.filter((note: Note) => note.id !== noteId);
-      setItems(items.map((item: MediaItem) => item.id === selectedItem.id ? updatedMedia : item));
-      setSelectedItem(updatedMedia);
-    } catch (error) {
-      console.error('Error deleting note:', error);
-    }
-  };
+    fetchMedia();
+  }, [type]);
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      <div className="flex justify-between items-center mb-8">
-        <h1 className="text-2xl font-bold text-gray-800">
-          {mediaType === 'book' ? 'Books' : 'Movies'}
-        </h1>
-        <div className="flex gap-4">
-          <button
-            onClick={() => setIsPomodoroOpen(true)}
-            className="px-4 py-2 bg-[#2c2c2c] text-white rounded-lg hover:bg-[#3c3c3c] transition-colors font-serif flex items-center gap-2"
-          >
-            <span>🍅</span>
-            <span>专注模式</span>
-          </button>
-          <button
-            onClick={handleAddNew}
-            className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600"
-          >
-            Add New
-          </button>
-        </div>
-        <button 
-          className="px-4 py-2 bg-green-500 text-white rounded-lg"
-          onClick={handleAddNew}
-        >
-          ➕ 添加{mediaType === 'book' ? '书籍' : '影视'}
-        </button>
-      </div>
-
-      {/* 内容区 */}
-      {items.length > 0 ? (
-        <div className={viewMode === 'grid' ? 'grid grid-cols-4 gap-4' : 'space-y-4'}>
-          {items.map((item) =>
-            viewMode === 'grid' ? (
-              <MediaCard
-                key={item.id}
-                item={item}
-                onViewDetail={handleViewDetail}
-                onEdit={handleEdit}
-              />
+    <Layout>
+      <div className="p-8">
+        {/* Header */}
+        <div className="flex justify-between items-center mb-6">
+          <h2 className="text-2xl font-serif text-[#2c2c2c] flex items-center">
+            {type === 'book' ? (
+              <>
+                <BookOpenIcon className="w-6 h-6 mr-2 text-[#d4b483]" />
+                我的书架
+              </>
             ) : (
-              <MediaListItem
-                key={item.id}
-                item={item}
-                onViewDetail={handleViewDetail}
-                onEdit={handleEdit}
-              />
-            )
-          )}
+              <>
+                <FilmIcon className="w-6 h-6 mr-2 text-[#d4b483]" />
+                我的影视
+              </>
+            )}
+          </h2>
+          <Link
+            to={`/${type === 'book' ? 'books' : 'movies'}/create`}
+            className="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-[#d4b483] rounded-sm hover:bg-[#c9a978] transition-colors"
+          >
+            <PlusIcon className="w-4 h-4 mr-2" />
+            {type === 'book' ? '添加书籍' : '添加影视'}
+          </Link>
         </div>
-      ) : (
-        <div className="text-center py-12">
-          <p className="text-gray-500">
-            还没有{mediaType === 'book' ? '书籍' : '影视'}记录，
-            快来添加一些吧！
-          </p>
-        </div>
-      )}
 
-      {/* Form Modal */}
-      {showForm && (
-        <Modal onClose={() => setShowForm(false)}>
-          <div className="bg-white rounded-lg shadow-lg p-6">
-            <h2 className="text-xl font-bold mb-4">
-              {editingItem ? '编辑' : '添加'}{mediaType === 'book' ? '书籍' : '影视'}
-            </h2>
-            <MediaForm
-              type={mediaType}
-              item={editingItem || undefined}
-              categories={categories}
-              onSubmit={handleSubmit}
-              onCancel={() => setShowForm(false)}
-            />
+        {/* Error message */}
+        {error && (
+          <div className="mb-6 p-4 bg-red-50 text-red-600 rounded-sm border border-red-200">
+            {error}
           </div>
-        </Modal>
-      )}
+        )}
 
-      {/* Detail Modal */}
-      {selectedItem && (
-        <Modal onClose={() => setSelectedItem(null)}>
-          <MediaDetail
-            item={selectedItem}
-            onClose={() => setSelectedItem(null)}
-            onEdit={handleEdit}
-            onDelete={handleDelete}
-            onAddNote={handleAddNote}
-            onEditNote={handleEditNote}
-            onDeleteNote={handleDeleteNote}
-          />
-        </Modal>
-      )}
-
-      {/* Add PomodoroTimer */}
-      <PomodoroTimer
-        isOpen={isPomodoroOpen}
-        onClose={() => setIsPomodoroOpen(false)}
-      />
-    </div>
+        {/* Loading state */}
+        {loading ? (
+          <div className="text-center py-12">
+            <div className="inline-block animate-spin rounded-full h-8 w-8 border-4 border-[#d4b483] border-t-transparent"></div>
+          </div>
+        ) : items.length === 0 ? (
+          <div className="text-center py-12 text-gray-500">
+            暂无{type === 'book' ? '书籍' : '影视'}记录，点击右上角按钮添加
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            {items.map((item) => (
+              <Link
+                key={item.id}
+                to={`/${type === 'book' ? 'books' : 'movies'}/${item.id}`}
+                className="group block bg-white rounded-lg shadow-sm hover:shadow-md transition-shadow duration-200 overflow-hidden border border-gray-100"
+              >
+                {/* Media card content */}
+                <div className="p-5">
+                  <h3 className="text-lg font-medium text-gray-900 group-hover:text-[#d4b483] transition-colors mb-2">
+                    {item.display_name.primary}
+                  </h3>
+                  {item.description?.primary && (
+                    <p className="text-sm text-gray-600 line-clamp-2">
+                      {item.description.primary}
+                    </p>
+                  )}
+                  <div className="mt-3 flex items-center text-sm text-gray-500">
+                    <span className={`px-2 py-1 rounded-full text-xs ${
+                      item.status === 'finished' ? 'bg-green-100 text-green-800' :
+                      item.status === 'ongoing' ? 'bg-blue-100 text-blue-800' :
+                      item.status === 'wishlist' ? 'bg-yellow-100 text-yellow-800' :
+                      'bg-gray-100 text-gray-800'
+                    }`}>
+                      {item.status === 'finished' ? '已完成' :
+                       item.status === 'ongoing' ? '进行中' :
+                       item.status === 'wishlist' ? '想看' : '已弃'}
+                    </span>
+                    {item.rating > 0 && (
+                      <span className="ml-2">⭐️ {item.rating}</span>
+                    )}
+                  </div>
+                </div>
+              </Link>
+            ))}
+          </div>
+        )}
+      </div>
+    </Layout>
   );
 } 

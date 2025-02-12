@@ -10,6 +10,11 @@ const API_VERSIONS = {
 
 type ApiVersion = keyof typeof API_VERSIONS;
 
+interface ApiError extends Error {
+  response?: Response;
+  data?: any;
+}
+
 interface RequestConfig extends Omit<RequestInit, 'headers'> {
   version?: ApiVersion;
   token?: string;
@@ -19,12 +24,16 @@ interface RequestConfig extends Omit<RequestInit, 'headers'> {
 
 async function request<T>(endpoint: string, config: RequestConfig = {}): Promise<T> {
   const { version = 'v1', token, headers: customHeaders, params, ...customConfig } = config;
+  
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
     'API-Version': version,
     ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
     ...customHeaders,
   };
+
+  console.log(`[API Request] ${config.method || 'GET'} ${endpoint}`);
+  console.log('[API Request] Headers:', headers);
 
   const url = new URL(endpoint, window.location.origin);
   if (params) {
@@ -35,17 +44,37 @@ async function request<T>(endpoint: string, config: RequestConfig = {}): Promise
     });
   }
 
+  console.log('[API Request] URL:', url.toString());
+
   const response = await fetch(url.pathname + url.search, {
     ...customConfig,
     headers,
+    credentials: 'include',
   });
 
+  console.log(`[API Response] Status: ${response.status}`);
+  console.log('[API Response] Headers:', Object.fromEntries(response.headers.entries()));
+
+  const data = await response.json().catch(() => {
+    console.error('[API Response] Failed to parse JSON response');
+    return {};
+  });
+
+  console.log('[API Response] Data:', data);
+
   if (!response.ok) {
-    const errorData = await response.json().catch(() => ({}));
-    throw new Error(errorData.error || '请求失败');
+    console.error('[API Error]', {
+      status: response.status,
+      statusText: response.statusText,
+      data,
+    });
+    const error = new Error(data.error || '请求失败') as ApiError;
+    error.response = response;
+    error.data = data;
+    throw error;
   }
 
-  return response.json();
+  return data;
 }
 
 // API endpoints
@@ -53,6 +82,7 @@ const endpoints = {
   auth: {
     register: '/api/v1/auth/register',
     login: '/api/v1/auth/login',
+    profile: '/api/v1/auth/profile',
   },
   tasks: {
     base: '/api/v1/tasks',
@@ -137,6 +167,7 @@ export const api = {
       dynamicClient.post<{ token: string; user: any }>(endpoints.auth.register, data),
     login: (data: { username: string; password: string }) =>
       dynamicClient.post<{ token: string; user: any }>(endpoints.auth.login, data),
+    getProfile: () => dynamicClient.get<any>(endpoints.auth.profile),
   },
   tasks: {
     getAll: () => dynamicClient.get<Task[]>(endpoints.tasks.base),

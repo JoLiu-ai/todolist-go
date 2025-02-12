@@ -1,27 +1,28 @@
 package services
 
 import (
+	"context"
 	"cute-todo/backend/internal/models"
 	"cute-todo/backend/internal/repository"
 	"fmt"
 )
 
 type TaskService struct {
-	repo *repository.GormTaskRepository
+	repo *repository.TaskRepository
 }
 
-func NewTaskService(repo *repository.GormTaskRepository) *TaskService {
+func NewTaskService(repo *repository.TaskRepository) *TaskService {
 	return &TaskService{repo: repo}
 }
 
-func (s *TaskService) CreateTask(task *models.Task) error {
-	return s.repo.CreateTask(task)
+func (s *TaskService) CreateTask(ctx context.Context, task *models.Task) error {
+	return s.repo.Create(ctx, task)
 }
 
-func (s *TaskService) GetTask(id uint, userID uint) (*models.Task, error) {
+func (s *TaskService) GetTask(ctx context.Context, id, userID int) (*models.Task, error) {
 	fmt.Printf("\n=== TaskService.GetTask called ===\n")
 	fmt.Printf("查找任务 - ID: %d, 用户ID: %d\n", id, userID)
-	task, err := s.repo.GetTask(id, userID)
+	task, err := s.repo.GetByID(ctx, id, userID)
 	if err != nil {
 		fmt.Printf("数据库查询失败: %v\n", err)
 		return nil, err
@@ -30,22 +31,22 @@ func (s *TaskService) GetTask(id uint, userID uint) (*models.Task, error) {
 	return task, nil
 }
 
-func (s *TaskService) ListTasks(userID uint, status string) ([]models.Task, error) {
-	return s.repo.ListTasks(userID, status)
+func (s *TaskService) ListTasks(ctx context.Context, userID int) ([]models.Task, error) {
+	return s.repo.List(ctx, userID)
 }
 
-func (s *TaskService) UpdateTask(id uint, userID uint, updates map[string]interface{}) error {
-	return s.repo.UpdateTask(id, userID, updates)
+func (s *TaskService) UpdateTask(ctx context.Context, id int, task *models.Task) error {
+	return s.repo.Update(ctx, id, task)
 }
 
-func (s *TaskService) DeleteTask(id uint, userID uint) error {
-	return s.repo.DeleteTask(id, userID)
+func (s *TaskService) DeleteTask(ctx context.Context, id, userID int) error {
+	return s.repo.Delete(ctx, id, userID)
 }
 
-func (s *TaskService) GetTodayTasks(userID uint) ([]models.Task, error) {
-	return s.repo.GetTodayTasks(userID)
+func (s *TaskService) GetTodayTasks(ctx context.Context, userID int) ([]models.Task, error) {
+	return s.repo.GetTodayTasks(ctx, userID)
 }
 
-func (s *TaskService) GetTaskStats(userID uint) (*models.TaskStats, error) {
-	return s.repo.GetTaskStats(userID)
+func (s *TaskService) GetTaskStats(ctx context.Context, userID int) (*models.TaskStats, error) {
+	return s.repo.GetTaskStats(ctx, userID)
 }

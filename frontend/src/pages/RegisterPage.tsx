@@ -18,10 +18,16 @@ export default function RegisterPage() {
     e.preventDefault();
     setError('');
 
+    // 添加前端验证
+    if (password.length < 6) {
+      setError('密码长度至少需要6个字符');
+      return;
+    }
+
     const requestData = {
-      username,
       email,
       password,
+      username: username || undefined  // 如果用户名为空字符串，则设为 undefined
     };
     
     console.log('Sending registration request with data:', requestData);
@@ -30,18 +36,27 @@ export default function RegisterPage() {
       const responseData = await api.auth.register(requestData);
       console.log('Registration response:', responseData);
 
-      // 直接使用注册返回的 token 和用户信息
       if (responseData.token && responseData.user) {
-        // 更新 AuthContext
         login(responseData.token, responseData.user);
-        // 直接跳转到首页
         navigate('/', { replace: true });
       } else {
-        throw new Error('注册成功但返回数据格式不正确');
+        throw new Error('注册失败，请稍后重试');
       }
     } catch (err) {
       console.error('Registration error:', err);
-      setError(err instanceof Error ? err.message : '注册失败，请稍后重试');
+      // 处理特定的错误类型
+      if (err instanceof Error) {
+        const errorMessage = err.message.toLowerCase();
+        if (errorMessage.includes('password') && errorMessage.includes('min')) {
+          setError('密码长度至少需要6个字符');
+        } else if (errorMessage.includes('email') && errorMessage.includes('already exists')) {
+          setError('该邮箱已被注册');
+        } else {
+          setError('注册失败，请检查输入信息是否正确');
+        }
+      } else {
+        setError('注册失败，请稍后重试');
+      }
     }
   };
 
@@ -60,7 +75,7 @@ export default function RegisterPage() {
           <form onSubmit={handleSubmit} className="space-y-6">
             <div>
               <label htmlFor="username" className="block text-sm font-serif text-[#4a4a4a] mb-2">
-                用户名
+                用户名（选填）
               </label>
               <input
                 id="username"
@@ -68,7 +83,6 @@ export default function RegisterPage() {
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
                 className="w-full p-3 text-sm text-[#4a4a4a] bg-[#f7f3eb] border border-[#ebe5d9] rounded-sm focus:outline-none focus:border-[#d4b483] transition-colors"
-                required
               />
             </div>
 

@@ -1,7 +1,7 @@
 FROM golang:1.22-alpine
 
 # 设置工作目录
-WORKDIR /go/src/cute-todo
+WORKDIR /app
 
 # 设置 Go 模块路径和代理
 ENV GO111MODULE=on
@@ -18,17 +18,14 @@ RUN go install -tags 'postgres' github.com/golang-migrate/migrate/v4/cmd/migrate
 # 安装 air
 RUN go install github.com/cosmtrek/air@v1.44.0
 
-# 创建目录结构
-RUN mkdir -p /go/src/cute-todo/backend
-
-# 复制整个项目
-COPY . .
-
-# 进入后端目录
-WORKDIR /go/src/cute-todo/backend
+# 首先只复制依赖文件
+COPY backend/go.mod backend/go.sum ./
 
 # 下载依赖
-RUN go mod download
+RUN go mod download && go mod verify
+
+# 复制后端源代码
+COPY backend/ .
 
 # 确保依赖是最新的
 RUN go mod tidy

@@ -7,28 +7,66 @@ export default function LoginPage() {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
   const { login } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const message = location.state?.message;
+  const from = location.state?.from?.pathname || '/';
+
+  console.log('Current location:', location);
+  console.log('Redirect target:', from);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    setIsLoading(true);
+    console.log('Attempting login with:', { username, password: '***' });
 
     try {
-      const data = await api.auth.login({ username, password });
+      if (!username.trim()) {
+        throw new Error('请输入用户名或邮箱');
+      }
+
+      if (!password.trim()) {
+        throw new Error('请输入密码');
+      }
+
+      const data = await api.auth.login({ username: username.trim(), password });
       console.log('Login response:', data);
 
       if (data.token && data.user) {
+        console.log('Login successful, saving token and user data');
         login(data.token, data.user);
-        navigate('/', { replace: true });
+        console.log('Navigating to:', from);
+        navigate(from, { replace: true });
+        console.log('Navigation triggered');
       } else {
-        throw new Error('登录成功但返回数据格式不正确');
+        console.error('Invalid response format:', data);
+        setError('登录失败，服务器返回数据格式不正确');
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error('Login error:', err);
-      setError(err instanceof Error ? err.message : '登录失败，请检查用户名和密码');
+      console.error('Error details:', {
+        message: err.message,
+        data: err.data,
+        response: err.response
+      });
+      
+      // 处理后端返回的具体错误信息
+      if (err.data && err.data.error) {
+        setError(err.data.error);
+      } else if (err instanceof Error) {
+        if (err.message.includes('record not found')) {
+          setError('用户名或邮箱不存在');
+        } else {
+          setError(err.message);
+        }
+      } else {
+        setError('登录失败，请检查用户名和密码');
+      }
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -53,7 +91,7 @@ export default function LoginPage() {
           <form onSubmit={handleSubmit} className="space-y-6">
             <div>
               <label htmlFor="username" className="block text-sm font-serif text-[#4a4a4a] mb-2">
-                用户名
+                用户名或邮箱
               </label>
               <input
                 id="username"
@@ -62,6 +100,8 @@ export default function LoginPage() {
                 onChange={(e) => setUsername(e.target.value)}
                 className="w-full p-3 text-sm text-[#4a4a4a] bg-[#f7f3eb] border border-[#ebe5d9] rounded-sm focus:outline-none focus:border-[#d4b483] transition-colors"
                 required
+                placeholder="请输入用户名或邮箱"
+                disabled={isLoading}
               />
             </div>
 
@@ -76,14 +116,18 @@ export default function LoginPage() {
                 onChange={(e) => setPassword(e.target.value)}
                 className="w-full p-3 text-sm text-[#4a4a4a] bg-[#f7f3eb] border border-[#ebe5d9] rounded-sm focus:outline-none focus:border-[#d4b483] transition-colors"
                 required
+                disabled={isLoading}
               />
             </div>
 
             <button
               type="submit"
-              className="w-full py-3 text-sm font-serif text-white bg-[#d4b483] hover:bg-[#c9a978] transition-colors rounded-sm"
+              className={`w-full py-3 text-sm font-serif text-white ${
+                isLoading ? 'bg-[#e5d5b5] cursor-not-allowed' : 'bg-[#d4b483] hover:bg-[#c9a978]'
+              } transition-colors rounded-sm`}
+              disabled={isLoading}
             >
-              登录
+              {isLoading ? '登录中...' : '登录'}
             </button>
 
             <div className="text-center">

@@ -3,9 +3,9 @@ package handlers
 import (
 	"net/http"
 	"strconv"
-	"time"
 
 	"cute-todo/backend/internal/models"
+	"cute-todo/backend/internal/repository"
 	"cute-todo/backend/internal/services"
 
 	"github.com/gin-gonic/gin"
@@ -13,10 +13,11 @@ import (
 
 type MediaHandler struct {
 	mediaService services.MediaService
+	repo         *repository.MediaRepository
 }
 
-func NewMediaHandler(mediaService services.MediaService) *MediaHandler {
-	return &MediaHandler{mediaService: mediaService}
+func NewMediaHandler(mediaService services.MediaService, repo *repository.MediaRepository) *MediaHandler {
+	return &MediaHandler{mediaService: mediaService, repo: repo}
 }
 
 // CreateMedia godoc
@@ -35,7 +36,7 @@ func (h *MediaHandler) CreateMedia(c *gin.Context) {
 		return
 	}
 
-	media.UserID = c.GetUint("user_id")
+	media.UserID = c.GetInt("userID")
 
 	if err := h.mediaService.Create(c.Request.Context(), &media); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
@@ -54,13 +55,14 @@ func (h *MediaHandler) CreateMedia(c *gin.Context) {
 // @Success 200 {object} models.Media
 // @Router /media/{id} [get]
 func (h *MediaHandler) GetMedia(c *gin.Context) {
-	id, err := strconv.ParseUint(c.Param("id"), 10, 32)
+	id, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid media ID"})
 		return
 	}
 
-	media, err := h.mediaService.GetByID(c.Request.Context(), uint(id))
+	userID := c.GetInt("userID")
+	media, err := h.mediaService.GetByID(c.Request.Context(), id, userID)
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Media not found"})
 		return
@@ -85,8 +87,8 @@ func (h *MediaHandler) GetMedia(c *gin.Context) {
 // @Router /media [get]
 func (h *MediaHandler) ListMedia(c *gin.Context) {
 	var filter models.MediaFilter
-	filter.UserID = new(uint)
-	*filter.UserID = c.GetUint("user_id")
+	userID := c.GetInt("userID")
+	filter.UserID = &userID
 
 	// 解析查询参数
 	if typeStr := c.Query("type"); typeStr != "" {
@@ -153,7 +155,7 @@ func (h *MediaHandler) ListMedia(c *gin.Context) {
 // @Success 200 {object} models.Media
 // @Router /media/{id} [put]
 func (h *MediaHandler) UpdateMedia(c *gin.Context) {
-	id, err := strconv.ParseUint(c.Param("id"), 10, 32)
+	id, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid media ID"})
 		return
@@ -165,10 +167,9 @@ func (h *MediaHandler) UpdateMedia(c *gin.Context) {
 		return
 	}
 
-	media.ID = uint(id)
-	media.UserID = c.GetUint("user_id")
+	media.UserID = c.GetInt("userID")
 
-	if err := h.mediaService.Update(c.Request.Context(), &media); err != nil {
+	if err := h.mediaService.Update(c.Request.Context(), id, &media); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
@@ -185,13 +186,15 @@ func (h *MediaHandler) UpdateMedia(c *gin.Context) {
 // @Success 200 {object} string
 // @Router /media/{id} [delete]
 func (h *MediaHandler) DeleteMedia(c *gin.Context) {
-	id, err := strconv.ParseUint(c.Param("id"), 10, 32)
+	id, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid media ID"})
 		return
 	}
 
-	if err := h.mediaService.Delete(c.Request.Context(), uint(id)); err != nil {
+	userID := c.GetInt("userID")
+
+	if err := h.mediaService.Delete(c.Request.Context(), id, userID); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
@@ -207,7 +210,7 @@ func (h *MediaHandler) DeleteMedia(c *gin.Context) {
 // @Success 200 {object} map[string]interface{}
 // @Router /media/home [get]
 func (h *MediaHandler) GetHomeData(c *gin.Context) {
-	userID := c.GetUint("user_id")
+	userID := c.GetInt("userID")
 
 	// 获取最近添加的媒体
 	recentFilter := models.MediaFilter{
@@ -243,6 +246,151 @@ func (h *MediaHandler) GetHomeData(c *gin.Context) {
 	})
 }
 
+// GetMediaByID godoc
+// @Summary 获取媒体详情
+// @Description 获取指定ID的媒体详情，包括笔记和详细信息
+// @Tags media
+// @Produce json
+// @Param id path int true "媒体ID"
+// @Success 200 {object} models.Media
+// @Router /media/{id} [get]
+func (h *MediaHandler) GetMediaByID(c *gin.Context) {
+	id, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid media ID"})
+		return
+	}
+
+	userID := c.GetInt("userID")
+	media, err := h.mediaService.GetByID(c.Request.Context(), id, userID)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Media not found"})
+		return
+	}
+
+	// 获取笔记
+	notes, err := h.mediaService.GetNotes(c.Request.Context(), id, 1, 10)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get notes"})
+		return
+	}
+
+	// 获取详细信息
+	var details interface{}
+	if media.Type == "book" {
+		details, err = h.mediaService.GetBookDetails(c.Request.Context(), id)
+	} else if media.Type == "movie" {
+		details, err = h.mediaService.GetMovieDetails(c.Request.Context(), id)
+	}
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get details"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"media":   media,
+		"notes":   notes,
+		"details": details,
+	})
+}
+
+// AddNote godoc
+// @Summary 添加笔记
+// @Description 为指定的媒体添加笔记
+// @Tags media
+// @Accept json
+// @Produce json
+// @Param id path int true "媒体ID"
+// @Param note body models.Note true "笔记内容"
+// @Success 201 {object} models.Note
+// @Router /media/{id}/notes [post]
+func (h *MediaHandler) AddNote(c *gin.Context) {
+	mediaID, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid media ID"})
+		return
+	}
+
+	var note models.Note
+	if err := c.ShouldBindJSON(&note); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	note.MediaID = mediaID
+
+	if err := h.mediaService.CreateNote(c.Request.Context(), mediaID, &note); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusCreated, note)
+}
+
+// UpdateNote godoc
+// @Summary 更新笔记
+// @Description 更新指定的笔记
+// @Tags media
+// @Accept json
+// @Produce json
+// @Param id path int true "媒体ID"
+// @Param note_id path int true "笔记ID"
+// @Param note body models.Note true "更新的笔记内容"
+// @Success 200 {object} models.Note
+// @Router /media/{id}/notes/{note_id} [put]
+func (h *MediaHandler) UpdateNote(c *gin.Context) {
+	mediaID, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid media ID"})
+		return
+	}
+
+	var note models.Note
+	if err := c.ShouldBindJSON(&note); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	note.MediaID = mediaID
+
+	if err := h.mediaService.UpdateNote(c.Request.Context(), mediaID, &note); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, note)
+}
+
+// DeleteNote godoc
+// @Summary 删除笔记
+// @Description 删除指定的笔记
+// @Tags media
+// @Produce json
+// @Param id path int true "媒体ID"
+// @Param note_id path int true "笔记ID"
+// @Success 200 {object} string
+// @Router /media/{id}/notes/{note_id} [delete]
+func (h *MediaHandler) DeleteNote(c *gin.Context) {
+	mediaID, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid media ID"})
+		return
+	}
+
+	noteID, err := strconv.Atoi(c.Param("note_id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid note ID"})
+		return
+	}
+
+	if err := h.mediaService.DeleteNote(c.Request.Context(), mediaID, noteID); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Note deleted successfully"})
+}
+
 // GetMediaList godoc
 // @Summary 获取媒体列表
 // @Description 获取媒体列表，支持过滤和分页
@@ -259,8 +407,8 @@ func (h *MediaHandler) GetHomeData(c *gin.Context) {
 // @Router /media/list [get]
 func (h *MediaHandler) GetMediaList(c *gin.Context) {
 	var filter models.MediaFilter
-	filter.UserID = new(uint)
-	*filter.UserID = c.GetUint("user_id")
+	userID := c.GetInt("userID")
+	filter.UserID = &userID
 
 	// 解析查询参数
 	if typeStr := c.Query("type"); typeStr != "" {
@@ -314,152 +462,4 @@ func (h *MediaHandler) GetMediaList(c *gin.Context) {
 		"page":  filter.Page,
 		"size":  filter.PageSize,
 	})
-}
-
-// GetMediaByID godoc
-// @Summary 获取媒体详情
-// @Description 获取指定ID的媒体详情，包括笔记和详细信息
-// @Tags media
-// @Produce json
-// @Param id path int true "媒体ID"
-// @Success 200 {object} models.Media
-// @Router /media/{id} [get]
-func (h *MediaHandler) GetMediaByID(c *gin.Context) {
-	id, err := strconv.ParseUint(c.Param("id"), 10, 32)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid media ID"})
-		return
-	}
-
-	media, err := h.mediaService.GetByID(c.Request.Context(), uint(id))
-	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "Media not found"})
-		return
-	}
-
-	// 获取笔记
-	notes, err := h.mediaService.GetNotes(c.Request.Context(), uint(id), 1, 100)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get notes"})
-		return
-	}
-
-	// 根据媒体类型获取详细信息
-	var details interface{}
-	switch media.Type {
-	case "book":
-		details, err = h.mediaService.GetBookDetails(c.Request.Context(), uint(id))
-	case "movie":
-		details, err = h.mediaService.GetMovieDetails(c.Request.Context(), uint(id))
-	}
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get details"})
-		return
-	}
-
-	c.JSON(http.StatusOK, gin.H{
-		"media":   media,
-		"notes":   notes,
-		"details": details,
-	})
-}
-
-// AddNote godoc
-// @Summary 添加笔记
-// @Description 为指定的媒体添加笔记
-// @Tags media
-// @Accept json
-// @Produce json
-// @Param id path int true "媒体ID"
-// @Param note body models.Note true "笔记内容"
-// @Success 201 {object} models.Note
-// @Router /media/{id}/notes [post]
-func (h *MediaHandler) AddNote(c *gin.Context) {
-	mediaID, err := strconv.ParseUint(c.Param("id"), 10, 32)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid media ID"})
-		return
-	}
-
-	var note models.Note
-	if err := c.ShouldBindJSON(&note); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
-	}
-
-	note.MediaID = uint(mediaID)
-	note.CreatedAt = time.Now()
-	note.UpdatedAt = time.Now()
-
-	if err := h.mediaService.CreateNote(c.Request.Context(), uint(mediaID), &note); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
-	}
-
-	c.JSON(http.StatusCreated, note)
-}
-
-// UpdateNote godoc
-// @Summary 更新笔记
-// @Description 更新指定的笔记
-// @Tags media
-// @Accept json
-// @Produce json
-// @Param id path int true "媒体ID"
-// @Param note_id path int true "笔记ID"
-// @Param note body models.Note true "更新的笔记内容"
-// @Success 200 {object} models.Note
-// @Router /media/{id}/notes/{note_id} [put]
-func (h *MediaHandler) UpdateNote(c *gin.Context) {
-	mediaID, err := strconv.ParseUint(c.Param("id"), 10, 32)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid media ID"})
-		return
-	}
-
-	var note models.Note
-	if err := c.ShouldBindJSON(&note); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
-	}
-
-	note.MediaID = uint(mediaID)
-	note.UpdatedAt = time.Now()
-
-	if err := h.mediaService.UpdateNote(c.Request.Context(), uint(mediaID), &note); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
-	}
-
-	c.JSON(http.StatusOK, note)
-}
-
-// DeleteNote godoc
-// @Summary 删除笔记
-// @Description 删除指定的笔记
-// @Tags media
-// @Produce json
-// @Param id path int true "媒体ID"
-// @Param note_id path int true "笔记ID"
-// @Success 200 {object} string
-// @Router /media/{id}/notes/{note_id} [delete]
-func (h *MediaHandler) DeleteNote(c *gin.Context) {
-	mediaID, err := strconv.ParseUint(c.Param("id"), 10, 32)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid media ID"})
-		return
-	}
-
-	noteID, err := strconv.ParseUint(c.Param("note_id"), 10, 32)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid note ID"})
-		return
-	}
-
-	if err := h.mediaService.DeleteNote(c.Request.Context(), uint(mediaID), uint(noteID)); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
-	}
-
-	c.JSON(http.StatusOK, gin.H{"message": "Note deleted successfully"})
 }
