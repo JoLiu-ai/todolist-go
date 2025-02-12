@@ -1,16 +1,21 @@
 server:
-  port: 8081
+  port: 8080
   host: "0.0.0.0"
 
 database:
-  host: "localhost"
+  host: "db"
   port: 5432
   user: "postgres"
   password: "postgres"
-  dbname: "media"
+  dbname: "cute_todo"
   sslmode: "disable"
   timezone: "Asia/Shanghai"
 
 auth:
   jwt_secret: "your-jwt-secret"
-  token_expiry: "24h" 
+  token_expiry: "24h"
+
+frontend:
+  port: 5173
+  api_url: "/api"  # 使用相对路径
+  local_api_url: "/api"  # 使用相对路径 

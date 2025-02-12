@@ -3,6 +3,7 @@ import type { Media, Note } from '../types/media';
 import Modal from './Modal';
 import { useParams } from 'react-router-dom';
 import LoadingSpinner from './LoadingSpinner';
+import { api } from '@/api/client';
 
 interface MediaDetailProps {
   item: Media;
@@ -21,7 +22,7 @@ interface NotesResponse {
   pageSize: number;
 }
 
-const MediaDetail: React.FC<MediaDetailProps> = ({
+export default function MediaDetail({
   item,
   onClose,
   onEdit,
@@ -29,7 +30,7 @@ const MediaDetail: React.FC<MediaDetailProps> = ({
   onAddNote,
   onEditNote,
   onDeleteNote,
-}) => {
+}: MediaDetailProps) {
   const { id } = useParams();
   const [isAddingNote, setIsAddingNote] = useState(false);
   const [noteContent, setNoteContent] = useState('');
@@ -42,28 +43,28 @@ const MediaDetail: React.FC<MediaDetailProps> = ({
   const [pageSize, setPageSize] = useState(10);
   const [isLoading, setIsLoading] = useState(false);
 
+  // 获取 token
+  const token = localStorage.getItem('token');
+
   // 获取笔记数据
-  const fetchNotes = async (page: number) => {
+  const fetchNotes = async () => {
+    if (!token) return;
+    
     setIsLoading(true);
     try {
-      const response = await fetch(`/api/v1/media/${item.id}/notes?page=${page}&pageSize=${pageSize}`);
-      if (!response.ok) {
-        throw new Error('Failed to fetch notes');
-      }
-      const data: NotesResponse = await response.json();
-      setNotes(data.notes);
-      setTotalNotes(data.total);
-      setPageSize(data.pageSize);
+      const response = await api.media.getNotes(item.id, { page: currentPage, pageSize: pageSize });
+      setNotes(response.notes);
+      setTotalNotes(response.total);
+      setPageSize(response.pageSize);
+      setIsLoading(false);
     } catch (error) {
       console.error('Error fetching notes:', error);
-    } finally {
-      setIsLoading(false);
     }
   };
 
   // 当页码改变时获取新数据
   useEffect(() => {
-    fetchNotes(currentPage);
+    fetchNotes();
   }, [currentPage, item.id]);
 
   const getStatusColor = (status: string) => {
@@ -117,7 +118,7 @@ const MediaDetail: React.FC<MediaDetailProps> = ({
         await onAddNote(noteContent);
       }
       // 重新获取当前页的笔记
-      await fetchNotes(currentPage);
+      await fetchNotes();
     } catch (error) {
       console.error('Error submitting note:', error);
     }
@@ -132,7 +133,7 @@ const MediaDetail: React.FC<MediaDetailProps> = ({
       try {
         await onDeleteNote(noteId);
         // 重新获取当前页的笔记
-        await fetchNotes(currentPage);
+        await fetchNotes();
       } catch (error) {
         console.error('Error deleting note:', error);
       }
@@ -433,6 +434,4 @@ const MediaDetail: React.FC<MediaDetailProps> = ({
       )}
     </div>
   );
-};
-
-export default MediaDetail; 
+} 

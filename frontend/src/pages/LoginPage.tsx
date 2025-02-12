@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigate, Link, useLocation } from 'react-router-dom';
+import { api } from '@/api/client';
 
 export default function LoginPage() {
   const [username, setUsername] = useState('');
@@ -16,10 +17,18 @@ export default function LoginPage() {
     setError('');
 
     try {
-      await login(username, password);
-      navigate('/');
+      const data = await api.auth.login({ username, password });
+      console.log('Login response:', data);
+
+      if (data.token && data.user) {
+        login(data.token, data.user);
+        navigate('/', { replace: true });
+      } else {
+        throw new Error('登录成功但返回数据格式不正确');
+      }
     } catch (err) {
-      setError('登录失败，请检查用户名和密码');
+      console.error('Login error:', err);
+      setError(err instanceof Error ? err.message : '登录失败，请检查用户名和密码');
     }
   };
 

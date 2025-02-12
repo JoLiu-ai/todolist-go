@@ -1,6 +1,10 @@
 import { useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigate, Link } from 'react-router-dom';
+import { Layout } from '@/components/layout/Layout';
+import { Button } from '@/components/common/Button';
+import { Input } from '@/components/common/Input';
+import { api } from '@/api/client';
 
 export default function RegisterPage() {
   const [username, setUsername] = useState('');
@@ -8,32 +12,36 @@ export default function RegisterPage() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const navigate = useNavigate();
+  const { login } = useAuth();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
 
+    const requestData = {
+      username,
+      email,
+      password,
+    };
+    
+    console.log('Sending registration request with data:', requestData);
+
     try {
-      const response = await fetch('/api/v1/auth/register', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          username,
-          email,
-          password,
-        }),
-      });
+      const responseData = await api.auth.register(requestData);
+      console.log('Registration response:', responseData);
 
-      if (!response.ok) {
-        throw new Error('注册失败');
+      // 直接使用注册返回的 token 和用户信息
+      if (responseData.token && responseData.user) {
+        // 更新 AuthContext
+        login(responseData.token, responseData.user);
+        // 直接跳转到首页
+        navigate('/', { replace: true });
+      } else {
+        throw new Error('注册成功但返回数据格式不正确');
       }
-
-      // 注册成功后跳转到登录页
-      navigate('/login', { state: { message: '注册成功，请登录' } });
     } catch (err) {
-      setError('注册失败，请稍后重试');
+      console.error('Registration error:', err);
+      setError(err instanceof Error ? err.message : '注册失败，请稍后重试');
     }
   };
 

@@ -2,7 +2,7 @@
 
 ## 基础信息
 
-- 基础 URL：`http://localhost:8081`
+- 基础 URL：`http://localhost:8080`
 - API 版本：v1
 - 所有请求和响应均使用 JSON 格式
 
@@ -202,6 +202,68 @@ PUT /api/v1/categories/{id}
 
 ```http
 DELETE /api/v1/categories/{id}
+```
+
+## 任务管理
+
+### 创建任务
+
+POST /api/tasks
+
+请求体：
+```json
+{
+    "title": "完成项目文档",
+    "description": "编写项目的技术文档和用户手册",
+    "priority": 1,
+    "due_date": "2024-03-20T15:00:00Z"
+}
+```
+
+### 获取任务列表
+
+GET /api/tasks?status=pending
+
+查询参数：
+- status: 任务状态（可选）
+
+### 更新任务
+
+PUT /api/tasks/:id
+
+请求体：
+```json
+{
+    "status": "completed",
+    "priority": 2
+}
+```
+
+### 删除任务
+
+DELETE /api/tasks/:id
+
+## 认证 API
+
+### 登录
+
+```http
+POST /api/v1/auth/login
+
+请求体：
+{
+    "username": "your_username",
+    "password": "your_password"
+}
+
+响应：
+{
+    "token": "eyJhbGciOiJIUzI1NiIs...",
+    "user": {
+        "id": 1,
+        "username": "your_username"
+    }
+}
 ```
 
 ## 错误处理

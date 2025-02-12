@@ -44,13 +44,19 @@ export const MediaListProvider = ({ children }: MediaListProviderProps) => {
     setError(null);
     try {
       const response = await mediaApi.getAll({});
-      setMediaList(response.data);
+      if (response.data) {
+        setMediaList(response.data);
+      } else {
+        setMediaList([]);
+      }
     } catch (err: any) {
       console.error('Failed to fetch media list:', err);
       if (err.response?.status === 401) {
         setError('请先登录后查看');
+      } else if (err.response?.data?.error) {
+        setError(err.response.data.error);
       } else {
-        setError(err.response?.data?.message || '获取列表失败');
+        setError('获取列表失败，请稍后重试');
       }
     } finally {
       setLoading(false);

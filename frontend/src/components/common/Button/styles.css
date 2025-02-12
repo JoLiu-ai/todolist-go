@@ -1,0 +1,117 @@
+.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border: none;
+  cursor: pointer;
+  transition: all var(--animation-duration-base);
+  font-weight: 500;
+  white-space: nowrap;
+  position: relative;
+}
+
+/* Variants */
+.button--primary {
+  background-color: var(--primary-color);
+  color: white;
+}
+
+.button--primary:hover {
+  background-color: color-mix(in srgb, var(--primary-color) 80%, white);
+}
+
+.button--secondary {
+  background-color: white;
+  color: var(--text-color);
+  border: 1px solid var(--border-color);
+}
+
+.button--secondary:hover {
+  color: var(--primary-color);
+  border-color: var(--primary-color);
+}
+
+.button--outline {
+  background-color: transparent;
+  color: var(--primary-color);
+  border: 1px solid var(--primary-color);
+}
+
+.button--outline:hover {
+  background-color: color-mix(in srgb, var(--primary-color) 10%, transparent);
+}
+
+.button--text {
+  background-color: transparent;
+  color: var(--primary-color);
+  padding: 0;
+}
+
+.button--text:hover {
+  background-color: transparent;
+  color: color-mix(in srgb, var(--primary-color) 80%, white);
+}
+
+/* Sizes */
+.button--small {
+  padding: 2px 8px;
+  font-size: var(--font-size-sm);
+  border-radius: var(--border-radius-base);
+}
+
+.button--medium {
+  padding: 4px 15px;
+  font-size: var(--font-size-base);
+  border-radius: var(--border-radius-base);
+}
+
+.button--large {
+  padding: 6px 20px;
+  font-size: var(--font-size-lg);
+  border-radius: calc(var(--border-radius-base) + 2px);
+}
+
+/* States */
+.button:disabled {
+  cursor: not-allowed;
+  opacity: 0.65;
+}
+
+.button--loading {
+  cursor: wait;
+}
+
+.button--loading .button__spinner {
+  margin-right: 8px;
+}
+
+.button--block {
+  display: flex;
+  width: 100%;
+}
+
+/* Icon */
+.button__icon {
+  display: inline-flex;
+  align-items: center;
+}
+
+/* Loading Spinner */
+.button__spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid;
+  border-radius: 50%;
+  border-color: currentColor currentColor currentColor transparent;
+  animation: button-spin 0.75s linear infinite;
+}
+
+@keyframes button-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+} 

@@ -5,6 +5,9 @@ import MediaListItem from './MediaListItem';
 import MediaForm from './MediaForm';
 import MediaDetail from './MediaDetail';
 import Modal from './Modal';
+import PomodoroTimer from './PomodoroTimer';
+import { useParams } from 'react-router-dom';
+import { api } from '@/api/client';
 
 interface MediaPageProps {
   mediaType: MediaType;
@@ -17,31 +20,31 @@ const MediaPage: React.FC<MediaPageProps> = ({ mediaType }) => {
   const [selectedItem, setSelectedItem] = useState<Media | undefined>(undefined);
   const [showForm, setShowForm] = useState(false);
   const [editingItem, setEditingItem] = useState<Media | undefined>(undefined);
+  const [isPomodoroOpen, setIsPomodoroOpen] = useState(false);
 
   useEffect(() => {
-    fetchData();
+    fetchMedia();
   }, [mediaType]);
 
-  const fetchData = async () => {
+  const fetchMedia = async () => {
     try {
-      // 获取媒体列表
-      const mediaResponse = await fetch(`/api/v1/media?type=${mediaType}`);
-      const mediaData = await mediaResponse.json();
+      const mediaData = await api.media.getAll({ type: mediaType });
       setItems(mediaData);
 
-      // 获取分类列表
-      const categoriesResponse = await fetch(`/api/v1/categories?type=${mediaType}`);
-      const categoriesData = await categoriesResponse.json();
+      // TODO: Add categories endpoint to API
+      const categoriesData = await api.media.getCategories({ type: mediaType });
       setCategories(categoriesData);
     } catch (error) {
-      console.error('Error fetching data:', error);
+      console.error('Error fetching media:', error);
     }
   };
 
-  const handleViewDetail = (id: number) => {
-    const item = items.find(i => i.id === id);
-    if (item) {
+  const handleViewDetail = async (id: number) => {
+    try {
+      const item = await api.media.getById(id);
       setSelectedItem(item);
+    } catch (error) {
+      console.error('Error fetching media details:', error);
     }
   };
 
@@ -52,53 +55,40 @@ const MediaPage: React.FC<MediaPageProps> = ({ mediaType }) => {
 
   const handleEdit = (id: number) => {
     const item = items.find(i => i.id === id);
-    if (item) {
-      setEditingItem(item);
-      setShowForm(true);
-    }
+    setEditingItem(item);
+    setShowForm(true);
   };
 
   const handleDelete = async (id: number) => {
-    if (!window.confirm('确定要删除这条记录吗？')) {
+    if (!window.confirm('确定要删除这个项目吗？')) {
       return;
     }
 
     try {
-      await fetch(`/api/v1/media/${id}`, {
-        method: 'DELETE',
-      });
+      await api.media.delete(id);
       setItems(items.filter(item => item.id !== id));
-      setSelectedItem(undefined);
+      if (selectedItem?.id === id) {
+        setSelectedItem(undefined);
+      }
     } catch (error) {
-      console.error('Error deleting item:', error);
+      console.error('Error deleting media:', error);
     }
   };
 
-  const handleSubmit = async (formData: Partial<Media>) => {
+  const handleSubmit = async (data: Partial<Media>) => {
     try {
-      const method = editingItem ? 'PUT' : 'POST';
-      const url = editingItem ? `/api/v1/media/${editingItem.id}` : '/api/v1/media';
-      
-      const response = await fetch(url, {
-        method,
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(formData),
-      });
-
-      const savedItem = await response.json();
-      
+      let updatedItem;
       if (editingItem) {
-        setItems(items.map(item => item.id === editingItem.id ? savedItem : item));
+        updatedItem = await api.media.update(editingItem.id, data);
+        setItems(items.map(item => item.id === editingItem.id ? updatedItem : item));
       } else {
-        setItems([...items, savedItem]);
+        updatedItem = await api.media.create(data);
+        setItems([...items, updatedItem]);
       }
-      
       setShowForm(false);
       setEditingItem(undefined);
     } catch (error) {
-      console.error('Error saving item:', error);
+      console.error('Error saving media:', error);
     }
   };
 
@@ -106,27 +96,8 @@ const MediaPage: React.FC<MediaPageProps> = ({ mediaType }) => {
     if (!selectedItem) return;
 
     try {
-      const response = await fetch(`/api/v1/media/${selectedItem.id}/notes`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          content: content.trim()
-        })
-      });
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      // 获取最新的媒体项数据
-      const mediaResponse = await fetch(`/api/v1/media/${selectedItem.id}`);
-      if (!mediaResponse.ok) {
-        throw new Error(`HTTP error! status: ${mediaResponse.status}`);
-      }
-      
-      const updatedItem = await mediaResponse.json();
+      await api.media.addNote(selectedItem.id, content);
+      const updatedItem = await api.media.getById(selectedItem.id);
       setItems(items.map(item => item.id === selectedItem.id ? updatedItem : item));
       setSelectedItem(updatedItem);
     } catch (error) {
@@ -138,28 +109,8 @@ const MediaPage: React.FC<MediaPageProps> = ({ mediaType }) => {
     if (!selectedItem) return;
 
     try {
-      const response = await fetch(`/api/v1/media/${selectedItem.id}/notes/${noteId}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          content: content.trim()
-        })
-      });
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      const updatedNote = await response.json();
-      const updatedItem = {
-        ...selectedItem,
-        notes: selectedItem.notes?.map(note => 
-          note.id === noteId ? updatedNote : note
-        ) || []
-      };
-
+      await api.media.updateNote(selectedItem.id, noteId, content);
+      const updatedItem = await api.media.getById(selectedItem.id);
       setItems(items.map(item => item.id === selectedItem.id ? updatedItem : item));
       setSelectedItem(updatedItem);
     } catch (error) {
@@ -168,21 +119,11 @@ const MediaPage: React.FC<MediaPageProps> = ({ mediaType }) => {
   };
 
   const handleDeleteNote = async (noteId: number) => {
-    if (!selectedItem || !window.confirm('确定要删除这条笔记吗？')) return;
+    if (!selectedItem) return;
 
     try {
-      const response = await fetch(`/api/v1/media/${selectedItem.id}/notes/${noteId}`, {
-        method: 'DELETE'
-      });
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      const updatedItem = { 
-        ...selectedItem,
-        notes: selectedItem.notes?.filter(note => note.id !== noteId) || []
-      };
+      await api.media.deleteNote(selectedItem.id, noteId);
+      const updatedItem = await api.media.getById(selectedItem.id);
       setItems(items.map(item => item.id === selectedItem.id ? updatedItem : item));
       setSelectedItem(updatedItem);
     } catch (error) {

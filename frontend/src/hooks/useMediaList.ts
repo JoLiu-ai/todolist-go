@@ -1,14 +1,22 @@
 import { useState, useEffect } from 'react';
 import { Media } from '../types/media';
 import { mediaApi } from '../api/client';
+import { useAuth } from '../contexts/AuthContext';
 
 export default function useMediaList() {
   const [mediaList, setMediaList] = useState([] as Media[]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null as string | null);
+  const { user } = useAuth();
 
   useEffect(() => {
     const fetchMedia = async () => {
+      if (!user) {
+        setLoading(false);
+        setError('请先登录');
+        return;
+      }
+
       try {
         setError(null);
         console.log('Fetching media list...');
@@ -36,8 +44,9 @@ export default function useMediaList() {
         setLoading(false);
       }
     };
+
     fetchMedia();
-  }, []);
+  }, [user]);
 
   return { mediaList, loading, error };
 } 

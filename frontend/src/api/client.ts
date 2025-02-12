@@ -1,23 +1,123 @@
-import axios from 'axios';
+import axios, { AxiosHeaders } from 'axios';
 import { Media, MediaType } from '../types/media';
+import { Task, TaskStats, CreateTaskData } from './tasks';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080';
+// 版本化配置
+const API_VERSIONS = {
+  v1: '/api/v1',
+  v2: '/api/v2' // 准备未来版本
+} as const;
 
-export const client = axios.create({
-  baseURL: `${API_URL}/api/v1`,
-  headers: {
+type ApiVersion = keyof typeof API_VERSIONS;
+
+interface RequestConfig extends Omit<RequestInit, 'headers'> {
+  version?: ApiVersion;
+  token?: string;
+  headers?: Record<string, string>;
+  params?: Record<string, any>;
+}
+
+async function request<T>(endpoint: string, config: RequestConfig = {}): Promise<T> {
+  const { version = 'v1', token, headers: customHeaders, params, ...customConfig } = config;
+  const headers: Record<string, string> = {
     'Content-Type': 'application/json',
-  },
-});
+    'API-Version': version,
+    ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+    ...customHeaders,
+  };
 
-// Add request interceptor to include auth token
-client.interceptors.request.use((config) => {
-  const token = localStorage.getItem('token');
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
+  const url = new URL(endpoint, window.location.origin);
+  if (params) {
+    Object.entries(params).forEach(([key, value]) => {
+      if (value !== undefined && value !== null) {
+        url.searchParams.append(key, String(value));
+      }
+    });
   }
-  return config;
-});
+
+  const response = await fetch(url.pathname + url.search, {
+    ...customConfig,
+    headers,
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.error || '请求失败');
+  }
+
+  return response.json();
+}
+
+// API endpoints
+const endpoints = {
+  auth: {
+    register: '/api/v1/auth/register',
+    login: '/api/v1/auth/login',
+  },
+  tasks: {
+    base: '/api/v1/tasks',
+    detail: (id: number | string) => `/api/v1/tasks/${id}`,
+    today: '/api/v1/tasks/today',
+    stats: '/api/v1/tasks/stats',
+  },
+  media: {
+    base: '/api/v1/media',
+    detail: (id: number | string) => `/api/v1/media/${id}`,
+    notes: (id: number | string) => `/api/v1/media/${id}/notes`,
+  },
+} as const;
+
+// 创建可复用的客户端生成器
+function createApiClient(version: ApiVersion = 'v1') {
+  return {
+    get: <T>(endpoint: string, config: RequestConfig = {}) => {
+      const token = localStorage.getItem('token') || undefined;
+      return request<T>(endpoint, {
+        ...config,
+        method: 'GET',
+        token,
+      });
+    },
+
+    post: <T>(endpoint: string, data: any, config: RequestConfig = {}) => {
+      const token = localStorage.getItem('token') || undefined;
+      return request<T>(endpoint, {
+        ...config,
+        method: 'POST',
+        body: JSON.stringify(data),
+        token,
+      });
+    },
+
+    put: <T>(endpoint: string, data: any, config: RequestConfig = {}) => {
+      const token = localStorage.getItem('token') || undefined;
+      return request<T>(endpoint, {
+        ...config,
+        method: 'PUT',
+        body: JSON.stringify(data),
+        token,
+      });
+    },
+
+    delete: <T>(endpoint: string, config: RequestConfig = {}) => {
+      const token = localStorage.getItem('token') || undefined;
+      return request<T>(endpoint, {
+        ...config,
+        method: 'DELETE',
+        token,
+      });
+    },
+  };
+}
+
+// 添加版本协商逻辑
+const getApiVersion = () => {
+  const storedVersion = localStorage.getItem('preferred-api-version');
+  return (storedVersion || 'v1') as ApiVersion;
+};
+
+// 动态客户端
+export const dynamicClient = createApiClient(getApiVersion());
 
 export interface GetMediaParams {
   type?: MediaType;
@@ -31,44 +131,36 @@ export interface ApiResponse<T> {
   message?: string;
 }
 
-export const mediaApi = {
-  getAll: async (params: GetMediaParams) => {
-    const response = await client.get<ApiResponse<Media[]>>('/media', { params });
-    return response.data;
+export const api = {
+  auth: {
+    register: (data: { username: string; email: string; password: string }) =>
+      dynamicClient.post<{ token: string; user: any }>(endpoints.auth.register, data),
+    login: (data: { username: string; password: string }) =>
+      dynamicClient.post<{ token: string; user: any }>(endpoints.auth.login, data),
   },
-
-  getById: async (id: number) => {
-    const response = await client.get<ApiResponse<Media>>(`/media/${id}`);
-    return response.data;
+  tasks: {
+    getAll: () => dynamicClient.get<Task[]>(endpoints.tasks.base),
+    getById: (id: number) => dynamicClient.get<Task>(endpoints.tasks.detail(id)),
+    create: (data: CreateTaskData) => dynamicClient.post<Task>(endpoints.tasks.base, data),
+    update: (id: number, data: Partial<CreateTaskData>) => dynamicClient.put<Task>(endpoints.tasks.detail(id), data),
+    delete: (id: number) => dynamicClient.delete<void>(endpoints.tasks.detail(id)),
+    getToday: () => dynamicClient.get<Task[]>(endpoints.tasks.today),
+    getStats: () => dynamicClient.get<TaskStats>(endpoints.tasks.stats),
   },
-
-  create: async (data: Partial<Media>) => {
-    const response = await client.post<ApiResponse<Media>>('/media', data);
-    return response.data;
-  },
-
-  update: async (id: number, data: Partial<Media>) => {
-    const response = await client.put<ApiResponse<Media>>(`/media/${id}`, data);
-    return response.data;
-  },
-
-  delete: async (id: number) => {
-    const response = await client.delete<ApiResponse<void>>(`/media/${id}`);
-    return response.data;
-  },
-
-  addNote: async (mediaId: number, content: string) => {
-    const response = await client.post<ApiResponse<Media>>(`/media/${mediaId}/notes`, { content });
-    return response.data;
-  },
-
-  updateNote: async (mediaId: number, noteId: number, content: string) => {
-    const response = await client.put<ApiResponse<Media>>(`/media/${mediaId}/notes/${noteId}`, { content });
-    return response.data;
-  },
-
-  deleteNote: async (mediaId: number, noteId: number) => {
-    const response = await client.delete<ApiResponse<Media>>(`/media/${mediaId}/notes/${noteId}`);
-    return response.data;
+  media: {
+    getAll: (params: GetMediaParams) => dynamicClient.get<Media[]>(endpoints.media.base, { params }),
+    getById: (id: number) => dynamicClient.get<Media>(endpoints.media.detail(id)),
+    create: (data: Partial<Media>) => dynamicClient.post<Media>(endpoints.media.base, data),
+    update: (id: number, data: Partial<Media>) => dynamicClient.put<Media>(endpoints.media.detail(id), data),
+    delete: (id: number) => dynamicClient.delete<void>(endpoints.media.detail(id)),
+    getCategories: (params: { type: string }) => dynamicClient.get<Category[]>(`${endpoints.media.base}/categories`, { params }),
+    getNotes: (mediaId: number, params: { page: number; pageSize: number }) => 
+      dynamicClient.get<NotesResponse>(`${endpoints.media.notes(mediaId)}`, { params }),
+    addNote: (mediaId: number, content: string) =>
+      dynamicClient.post<Media>(endpoints.media.notes(mediaId), { content }),
+    updateNote: (mediaId: number, noteId: number, content: string) =>
+      dynamicClient.put<Media>(`${endpoints.media.notes(mediaId)}/${noteId}`, { content }),
+    deleteNote: (mediaId: number, noteId: number) =>
+      dynamicClient.delete<void>(`${endpoints.media.notes(mediaId)}/${noteId}`),
   },
 }; 

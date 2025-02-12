@@ -1,27 +1,44 @@
 FROM golang:1.22-alpine
 
-WORKDIR /app
+# 设置工作目录
+WORKDIR /go/src/cute-todo
 
-# 设置环境变量
-ENV GOTOOLCHAIN=local
+# 设置 Go 模块路径和代理
+ENV GO111MODULE=on
+ENV GOPROXY=https://goproxy.cn,direct
+ENV CGO_ENABLED=0
+ENV GOOS=linux
 
-# 安装依赖
-RUN apk add --no-cache git
+# 安装必要的系统依赖
+RUN apk add --no-cache gcc musl-dev git curl netcat-openbsd postgresql-client
 
-# 复制 go.mod 和 go.sum
-COPY backend/go.mod backend/go.sum ./
+# 安装 golang-migrate
+RUN go install -tags 'postgres' github.com/golang-migrate/migrate/v4/cmd/migrate@latest
 
-# 下载并验证依赖
-RUN go mod download && go mod verify
+# 安装 air
+RUN go install github.com/cosmtrek/air@v1.44.0
 
-# 复制源代码
-COPY backend/ .
+# 创建目录结构
+RUN mkdir -p /go/src/cute-todo/backend
 
-# 构建应用
-RUN go mod tidy && go build -o main ./cmd/server
+# 复制整个项目
+COPY . .
+
+# 进入后端目录
+WORKDIR /go/src/cute-todo/backend
+
+# 下载依赖
+RUN go mod download
+
+# 确保依赖是最新的
+RUN go mod tidy
 
 # 暴露端口
 EXPOSE 8080
 
-# 运行应用
-CMD ["./main"] 
+# 创建启动脚本
+COPY docker/local/start.sh /start.sh
+RUN chmod +x /start.sh
+
+# 使用启动脚本
+CMD ["/start.sh"]

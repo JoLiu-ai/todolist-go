@@ -49,6 +49,7 @@ func main() {
 	fmt.Println("Initializing services...")
 	var mediaService ports.MediaService
 	mediaService = services.NewMediaService(db)
+	taskService := services.NewTaskService(db)
 
 	// 从环境变量获取 JWT 密钥
 	jwtSecret := os.Getenv("JWT_SECRET")
@@ -58,12 +59,13 @@ func main() {
 
 	// 初始化处理器
 	fmt.Println("Initializing handlers...")
-	authHandler := handlers.NewAuthHandler(jwtSecret)
+	authHandler := handlers.NewAuthHandler(jwtSecret, db)
 	mediaHandler := handlers.NewMediaHandler(mediaService, db)
+	taskHandler := handlers.NewTaskHandler(taskService)
 
 	// 设置路由
 	fmt.Println("Setting up routes...")
-	r := router.SetupRouter(authHandler, mediaHandler)
+	r := router.SetupRouter(authHandler, mediaHandler, taskHandler)
 
 	// 打印所有路由
 	routes := r.Routes()

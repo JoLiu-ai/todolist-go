@@ -3,125 +3,107 @@ package services
 import (
 	"context"
 
-	"cute-todo/backend/internal/core/domain"
-	"cute-todo/backend/internal/core/ports"
-
-	"gorm.io/gorm"
+	"cute-todo/backend/models"
 )
 
+// MediaService defines the interface for media-related operations
+type MediaService interface {
+	Create(ctx context.Context, media *models.Media) error
+	GetByID(ctx context.Context, id uint) (*models.Media, error)
+	Update(ctx context.Context, media *models.Media) error
+	Delete(ctx context.Context, id uint) error
+	List(ctx context.Context, filter models.MediaFilter) ([]*models.Media, error)
+	Count(ctx context.Context, filter models.MediaFilter) (int64, error)
+
+	GetNotes(ctx context.Context, mediaID uint, page, pageSize int) ([]*models.Note, error)
+	CountNotes(ctx context.Context, mediaID uint) (int64, error)
+	CreateNote(ctx context.Context, mediaID uint, note *models.Note) error
+	UpdateNote(ctx context.Context, mediaID uint, note *models.Note) error
+	DeleteNote(ctx context.Context, mediaID, noteID uint) error
+
+	CreateBookDetails(ctx context.Context, details *models.BookDetails) error
+	GetBookDetails(ctx context.Context, mediaID uint) (*models.BookDetails, error)
+	UpdateBookDetails(ctx context.Context, details *models.BookDetails) error
+
+	CreateMovieDetails(ctx context.Context, details *models.MovieDetails) error
+	GetMovieDetails(ctx context.Context, mediaID uint) (*models.MovieDetails, error)
+	UpdateMovieDetails(ctx context.Context, details *models.MovieDetails) error
+}
+
+// mediaService implements MediaService interface
 type mediaService struct {
-	db *gorm.DB
+	repo models.MediaRepository
 }
 
-func NewMediaService(db *gorm.DB) ports.MediaService {
-	return &mediaService{db: db}
+// NewMediaService creates a new MediaService instance
+func NewMediaService(repo models.MediaRepository) MediaService {
+	return &mediaService{repo: repo}
 }
 
-func (s *mediaService) Create(ctx context.Context, media *domain.Media) error {
-	return s.db.Create(media).Error
+func (s *mediaService) Create(ctx context.Context, media *models.Media) error {
+	return s.repo.Create(ctx, media)
 }
 
-func (s *mediaService) GetByID(ctx context.Context, id uint) (*domain.Media, error) {
-	var media domain.Media
-	err := s.db.First(&media, id).Error
-	if err != nil {
-		return nil, err
-	}
-	return &media, nil
+func (s *mediaService) GetByID(ctx context.Context, id uint) (*models.Media, error) {
+	return s.repo.GetByID(ctx, id)
 }
 
-func (s *mediaService) Update(ctx context.Context, media *domain.Media) error {
-	return s.db.Save(media).Error
+func (s *mediaService) Update(ctx context.Context, media *models.Media) error {
+	return s.repo.Update(ctx, media)
 }
 
 func (s *mediaService) Delete(ctx context.Context, id uint) error {
-	return s.db.Delete(&domain.Media{}, id).Error
+	return s.repo.Delete(ctx, id)
 }
 
-func (s *mediaService) List(ctx context.Context, filter ports.MediaFilter) ([]*domain.Media, error) {
-	var medias []*domain.Media
-	query := s.buildQuery(filter)
-
-	if filter.Page > 0 && filter.PageSize > 0 {
-		offset := (filter.Page - 1) * filter.PageSize
-		query = query.Offset(offset).Limit(filter.PageSize)
-	}
-
-	if filter.SortBy != "" {
-		if filter.SortDesc {
-			query = query.Order(filter.SortBy + " DESC")
-		} else {
-			query = query.Order(filter.SortBy)
-		}
-	}
-
-	err := query.Find(&medias).Error
-	return medias, err
+func (s *mediaService) List(ctx context.Context, filter models.MediaFilter) ([]*models.Media, error) {
+	return s.repo.List(ctx, filter)
 }
 
-func (s *mediaService) Count(ctx context.Context, filter ports.MediaFilter) (int64, error) {
-	var count int64
-	query := s.buildQuery(filter)
-	err := query.Count(&count).Error
-	return count, err
+func (s *mediaService) Count(ctx context.Context, filter models.MediaFilter) (int64, error) {
+	return s.repo.Count(ctx, filter)
 }
 
-func (s *mediaService) buildQuery(filter ports.MediaFilter) *gorm.DB {
-	query := s.db.Model(&domain.Media{})
-
-	if filter.Type != nil {
-		query = query.Where("type = ?", *filter.Type)
-	}
-	if filter.Status != nil {
-		query = query.Where("status = ?", *filter.Status)
-	}
-	if filter.Title != nil {
-		query = query.Where("display_name_primary LIKE ?", "%"+*filter.Title+"%")
-	}
-	if filter.Creator != nil {
-		query = query.Where("creator LIKE ?", "%"+*filter.Creator+"%")
-	}
-	if filter.Rating != nil {
-		query = query.Where("rating >= ?", *filter.Rating)
-	}
-	if len(filter.Tags) > 0 {
-		query = query.Where("tags && ?", filter.Tags)
-	}
-	if filter.UserID != nil {
-		query = query.Where("user_id = ?", *filter.UserID)
-	}
-
-	return query
-}
-
-func (s *mediaService) GetNotes(ctx context.Context, mediaID uint, page, pageSize int) ([]*domain.Note, error) {
-	var notes []*domain.Note
-	query := s.db.Where("media_id = ?", mediaID)
-
-	if page > 0 && pageSize > 0 {
-		offset := (page - 1) * pageSize
-		query = query.Offset(offset).Limit(pageSize)
-	}
-
-	err := query.Find(&notes).Error
-	return notes, err
+func (s *mediaService) GetNotes(ctx context.Context, mediaID uint, page, pageSize int) ([]*models.Note, error) {
+	return s.repo.GetNotes(ctx, mediaID, page, pageSize)
 }
 
 func (s *mediaService) CountNotes(ctx context.Context, mediaID uint) (int64, error) {
-	var count int64
-	err := s.db.Model(&domain.Note{}).Where("media_id = ?", mediaID).Count(&count).Error
-	return count, err
+	return s.repo.CountNotes(ctx, mediaID)
 }
 
-func (s *mediaService) AddNote(ctx context.Context, mediaID uint, note *domain.Note) error {
-	note.MediaID = mediaID
-	return s.db.Create(note).Error
+func (s *mediaService) CreateNote(ctx context.Context, mediaID uint, note *models.Note) error {
+	return s.repo.CreateNote(ctx, mediaID, note)
 }
 
-func (s *mediaService) UpdateNote(ctx context.Context, mediaID uint, note *domain.Note) error {
-	return s.db.Where("media_id = ? AND id = ?", mediaID, note.ID).Save(note).Error
+func (s *mediaService) UpdateNote(ctx context.Context, mediaID uint, note *models.Note) error {
+	return s.repo.UpdateNote(ctx, mediaID, note)
 }
 
 func (s *mediaService) DeleteNote(ctx context.Context, mediaID, noteID uint) error {
-	return s.db.Where("media_id = ? AND id = ?", mediaID, noteID).Delete(&domain.Note{}).Error
+	return s.repo.DeleteNote(ctx, mediaID, noteID)
 }
+
+func (s *mediaService) CreateBookDetails(ctx context.Context, details *models.BookDetails) error {
+	return s.repo.CreateBookDetails(ctx, details)
+}
+
+func (s *mediaService) GetBookDetails(ctx context.Context, mediaID uint) (*models.BookDetails, error) {
+	return s.repo.GetBookDetails(ctx, mediaID)
+}
+
+func (s *mediaService) UpdateBookDetails(ctx context.Context, details *models.BookDetails) error {
+	return s.repo.UpdateBookDetails(ctx, details)
+}
+
+func (s *mediaService) CreateMovieDetails(ctx context.Context, details *models.MovieDetails) error {
+	return s.repo.CreateMovieDetails(ctx, details)
+}
+
+func (s *mediaService) GetMovieDetails(ctx context.Context, mediaID uint) (*models.MovieDetails, error) {
+	return s.repo.GetMovieDetails(ctx, mediaID)
+}
+
+func (s *mediaService) UpdateMovieDetails(ctx context.Context, details *models.MovieDetails) error {
+	return s.repo.UpdateMovieDetails(ctx, details)
+} 
