@@ -1,3 +1,4 @@
+import React from 'react';
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { BookOpenIcon, FilmIcon, HomeIcon } from '@heroicons/react/24/outline';
@@ -25,13 +26,13 @@ function CreateMediaPage({ type }: CreateMediaPageProps) {
     user
   });
 
-  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (e: SubmitEvent) => {
     e.preventDefault();
     setLoading(true);
     setError('');
 
     try {
-      const formData = new FormData(e.currentTarget);
+      const formData = new FormData(e.currentTarget as HTMLFormElement);
       const title = formData.get('title') as string;
       const data = {
         type,
@@ -69,7 +70,7 @@ function CreateMediaPage({ type }: CreateMediaPageProps) {
   };
 
   return (
-    <Layout>
+    <Layout children={
       <div className="min-h-screen bg-gradient-to-b from-[#fcf9f3] to-[#f7f3eb] p-8">
         {/* 面包屑导航 */}
         <nav className="mb-8 flex" aria-label="Breadcrumb">
@@ -326,7 +327,7 @@ function CreateMediaPage({ type }: CreateMediaPageProps) {
           </div>
         </div>
       </div>
-    </Layout>
+    } />
   );
 }
 

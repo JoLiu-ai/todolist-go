@@ -26,6 +26,10 @@ export default function MediaDetailPage() {
       </Layout>
     );
   }
+        </div>
+      </Layout>
+    );
+  }
 
   if (error) {
     return (
