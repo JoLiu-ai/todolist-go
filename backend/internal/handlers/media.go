@@ -1,7 +1,11 @@
 package handlers
 
 import (
+	"fmt"
+	"log"
 	"net/http"
+	"os"
+	"runtime/debug"
 	"strconv"
 
 	"cute-todo/backend/internal/models"
@@ -20,6 +24,28 @@ func NewMediaHandler(mediaService services.MediaService, repo *repository.MediaR
 	return &MediaHandler{mediaService: mediaService, repo: repo}
 }
 
+// 添加错误处理辅助函数
+func handleError(c *gin.Context, err error, status int) {
+	debugMode := os.Getenv("DEBUG_MODE") == "true"
+
+	if debugMode {
+		// 在调试模式下，返回详细的错误信息
+		errorResponse := gin.H{
+			"error": err.Error(),
+			"stack": string(debug.Stack()),
+			"debug_info": map[string]interface{}{
+				"request_path":   c.Request.URL.Path,
+				"request_method": c.Request.Method,
+				"query_params":   c.Request.URL.Query(),
+			},
+		}
+		c.JSON(status, errorResponse)
+	} else {
+		// 在生产模式下，返回用户友好的错误信息
+		c.JSON(status, gin.H{"error": "操作失败，请稍后重试"})
+	}
+}
+
 // CreateMedia godoc
 // @Summary 创建媒体项
 // @Description 创建一个新的媒体项（书籍、电影等）
@@ -32,17 +58,23 @@ func NewMediaHandler(mediaService services.MediaService, repo *repository.MediaR
 func (h *MediaHandler) CreateMedia(c *gin.Context) {
 	var media models.Media
 	if err := c.ShouldBindJSON(&media); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		handleError(c, fmt.Errorf("invalid request body: %v", err), http.StatusBadRequest)
 		return
 	}
+
+	// 添加请求数据的日志
+	log.Printf("[CreateMedia] Received request data: %+v", media)
 
 	media.UserID = c.GetInt("userID")
+	log.Printf("[CreateMedia] Set UserID: %d", media.UserID)
 
 	if err := h.mediaService.Create(c.Request.Context(), &media); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		log.Printf("[CreateMedia] Failed to create media: %v", err)
+		handleError(c, fmt.Errorf("failed to create media: %v", err), http.StatusInternalServerError)
 		return
 	}
 
+	log.Printf("[CreateMedia] Successfully created media with ID: %d", media.ID)
 	c.JSON(http.StatusCreated, media)
 }
 
@@ -57,14 +89,14 @@ func (h *MediaHandler) CreateMedia(c *gin.Context) {
 func (h *MediaHandler) GetMedia(c *gin.Context) {
 	id, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid media ID"})
+		handleError(c, fmt.Errorf("invalid media ID: %v", err), http.StatusBadRequest)
 		return
 	}
 
 	userID := c.GetInt("userID")
 	media, err := h.mediaService.GetByID(c.Request.Context(), id, userID)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "Media not found"})
+		handleError(c, fmt.Errorf("failed to get media: %v", err), http.StatusInternalServerError)
 		return
 	}
 
@@ -90,23 +122,30 @@ func (h *MediaHandler) ListMedia(c *gin.Context) {
 	userID := c.GetInt("userID")
 	filter.UserID = &userID
 
+	log.Printf("[ListMedia] User ID: %d", userID)
+
 	// 解析查询参数
 	if typeStr := c.Query("type"); typeStr != "" {
 		filter.Type = &typeStr
+		log.Printf("[ListMedia] Type filter: %s", typeStr)
 	}
 	if status := c.Query("status"); status != "" {
 		filter.Status = &status
+		log.Printf("[ListMedia] Status filter: %s", status)
 	}
 	if title := c.Query("title"); title != "" {
 		filter.Title = &title
+		log.Printf("[ListMedia] Title filter: %s", title)
 	}
 	if creator := c.Query("creator"); creator != "" {
 		filter.Creator = &creator
+		log.Printf("[ListMedia] Creator filter: %s", creator)
 	}
 	if rating := c.Query("rating"); rating != "" {
 		if r, err := strconv.ParseFloat(rating, 32); err == nil {
 			r32 := float32(r)
 			filter.Rating = &r32
+			log.Printf("[ListMedia] Rating filter: %f", r32)
 		}
 	}
 
@@ -114,27 +153,37 @@ func (h *MediaHandler) ListMedia(c *gin.Context) {
 	if page := c.Query("page"); page != "" {
 		if p, err := strconv.Atoi(page); err == nil && p > 0 {
 			filter.Page = p
+			log.Printf("[ListMedia] Page: %d", p)
 		}
 	}
 	if pageSize := c.Query("page_size"); pageSize != "" {
 		if ps, err := strconv.Atoi(pageSize); err == nil && ps > 0 {
 			filter.PageSize = ps
+			log.Printf("[ListMedia] Page size: %d", ps)
 		}
 	}
+
+	log.Printf("[ListMedia] Final filter: %+v", filter)
 
 	// 获取数据
 	medias, err := h.mediaService.List(c.Request.Context(), filter)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		log.Printf("[ListMedia] Error getting media list: %v", err)
+		handleError(c, fmt.Errorf("failed to get media list: %v", err), http.StatusInternalServerError)
 		return
 	}
+
+	log.Printf("[ListMedia] Found %d media items", len(medias))
 
 	// 获取总数
 	total, err := h.mediaService.Count(c.Request.Context(), filter)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		log.Printf("[ListMedia] Error getting media count: %v", err)
+		handleError(c, fmt.Errorf("failed to get media count: %v", err), http.StatusInternalServerError)
 		return
 	}
+
+	log.Printf("[ListMedia] Total count: %d", total)
 
 	c.JSON(http.StatusOK, gin.H{
 		"items": medias,
@@ -168,6 +217,7 @@ func (h *MediaHandler) UpdateMedia(c *gin.Context) {
 	}
 
 	media.UserID = c.GetInt("userID")
+	media.ID = id
 
 	if err := h.mediaService.Update(c.Request.Context(), id, &media); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
@@ -226,23 +276,8 @@ func (h *MediaHandler) GetHomeData(c *gin.Context) {
 		return
 	}
 
-	// 获取高评分的媒体
-	ratingFilter := models.MediaFilter{
-		UserID:   &userID,
-		Page:     1,
-		PageSize: 5,
-		SortBy:   "rating",
-		SortDesc: true,
-	}
-	topRatedMedia, err := h.mediaService.List(c.Request.Context(), ratingFilter)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get top rated media"})
-		return
-	}
-
 	c.JSON(http.StatusOK, gin.H{
 		"recent_media": recentMedia,
-		"top_rated":    topRatedMedia,
 	})
 }
 
@@ -462,4 +497,46 @@ func (h *MediaHandler) GetMediaList(c *gin.Context) {
 		"page":  filter.Page,
 		"size":  filter.PageSize,
 	})
+}
+
+// GetMediaStats godoc
+// @Summary 获取媒体统计信息
+// @Description 获取用户的媒体统计信息，包括书籍和电影的总数和进行中的数量
+// @Tags media
+// @Produce json
+// @Success 200 {object} models.MediaStats
+// @Router /media/stats [get]
+func (h *MediaHandler) GetMediaStats(c *gin.Context) {
+	userID := c.GetInt("userID")
+	stats, err := h.mediaService.GetStats(c.Request.Context(), uint(userID))
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "获取统计信息失败"})
+		return
+	}
+	c.JSON(http.StatusOK, stats)
+}
+
+// GetRecentMedia godoc
+// @Summary 获取最近的媒体
+// @Description 获取用户最近添加或更新的媒体列表
+// @Tags media
+// @Produce json
+// @Param limit query int false "返回数量限制"
+// @Success 200 {array} models.Media
+// @Router /media/recent [get]
+func (h *MediaHandler) GetRecentMedia(c *gin.Context) {
+	userID := c.GetInt("userID")
+	limit := 5 // 默认返回5条
+	if limitStr := c.Query("limit"); limitStr != "" {
+		if l, err := strconv.Atoi(limitStr); err == nil && l > 0 {
+			limit = l
+		}
+	}
+
+	media, err := h.mediaService.GetRecent(c.Request.Context(), uint(userID), limit)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "获取最近媒体失败"})
+		return
+	}
+	c.JSON(http.StatusOK, media)
 }

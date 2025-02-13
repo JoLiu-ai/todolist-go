@@ -1,9 +1,9 @@
 import { useState } from 'react';
-import { useNavigate, Link, Navigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { HomeIcon, ClipboardDocumentListIcon } from '@heroicons/react/24/outline';
 import Layout from '../components/Layout';
-import { useAuth } from '../contexts/AuthContext';
 import { taskApi } from '@/api/tasks';
+import { withAuth } from '@/components/withAuth';
 
 interface TaskFormData {
   title: string;
@@ -20,22 +20,22 @@ const TASK_CATEGORIES = [
   { id: 'other', name: '其他' },
 ] as const;
 
-export default function CreateTaskPage() {
+function CreateTaskPage() {
   const navigate = useNavigate();
-  const { isAuthenticated } = useAuth();
-  const [formData, setFormData] = useState<TaskFormData>({
+  const [formData, setFormData] = useState({
     title: '',
     description: '',
     priority: 1,
-    category: 'other',
-    due_date: new Date().toISOString().slice(0, 16),
+    category: 'other' as const,
+    due_date: (() => {
+      const today = new Date();
+      today.setHours(23, 59, 59, 0);
+      // 调整时区偏移
+      const offset = today.getTimezoneOffset() * 60000;
+      return new Date(today.getTime() - offset).toISOString().slice(0, 16);
+    })(),
   });
   const [error, setError] = useState('');
-
-  // 如果未登录，重定向到登录页面
-  if (!isAuthenticated) {
-    return <Navigate to="/login" state={{ message: '请先登录后再创建任务' }} />;
-  }
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -63,7 +63,7 @@ export default function CreateTaskPage() {
     const { name, value } = e.target;
     // 对于 priority 字段，将字符串转换为数字
     const finalValue = name === 'priority' ? parseInt(value, 10) : value;
-    setFormData((prev: TaskFormData) => ({ ...prev, [name]: finalValue }));
+    setFormData((prev: typeof formData) => ({ ...prev, [name]: finalValue }));
   };
 
   return (
@@ -138,7 +138,7 @@ export default function CreateTaskPage() {
               />
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
                 <label htmlFor="category" className="block text-sm font-medium text-gray-700 mb-2">
                   任务类别
@@ -174,11 +174,13 @@ export default function CreateTaskPage() {
                   <option value={3}>高</option>
                 </select>
               </div>
+            </div>
 
-              <div>
-                <label htmlFor="due_date" className="block text-sm font-medium text-gray-700 mb-2">
-                  截止日期
-                </label>
+            <div>
+              <label htmlFor="due_date" className="block text-sm font-medium text-gray-700 mb-2">
+                截止日期
+              </label>
+              <div className="max-w-md">
                 <input
                   type="datetime-local"
                   id="due_date"
@@ -213,4 +215,6 @@ export default function CreateTaskPage() {
       </div>
     </Layout>
   );
-} 
+}
+
+export default withAuth(CreateTaskPage, '请先登录后再创建任务'); 

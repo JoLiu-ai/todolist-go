@@ -79,6 +79,8 @@ func SetupRouter(
 				media.GET("/:id", mediaHandler.GetMediaByID)
 				media.PUT("/:id", mediaHandler.UpdateMedia)
 				media.DELETE("/:id", mediaHandler.DeleteMedia)
+				media.GET("/stats", mediaHandler.GetMediaStats)
+				media.GET("/recent", mediaHandler.GetRecentMedia)
 
 				// 笔记相关路由
 				notes := media.Group("/:id/notes")

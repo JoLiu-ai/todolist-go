@@ -1,20 +1,21 @@
 package handlers
 
 import (
+	"fmt"
 	"net/http"
 	"strconv"
 
 	"cute-todo/backend/internal/models"
-	"cute-todo/backend/internal/repository"
+	"cute-todo/backend/internal/services"
 
 	"github.com/gin-gonic/gin"
 )
 
 type TaskHandler struct {
-	taskService *repository.TaskRepository
+	taskService *services.TaskService
 }
 
-func NewTaskHandler(taskService *repository.TaskRepository) *TaskHandler {
+func NewTaskHandler(taskService *services.TaskService) *TaskHandler {
 	return &TaskHandler{taskService: taskService}
 }
 
@@ -28,18 +29,29 @@ func NewTaskHandler(taskService *repository.TaskRepository) *TaskHandler {
 // @Success 201 {object} models.Task
 // @Router /tasks [post]
 func (h *TaskHandler) CreateTask(c *gin.Context) {
+	fmt.Println("\n=== CreateTask Start ===")
+
 	var task models.Task
 	if err := c.ShouldBindJSON(&task); err != nil {
+		fmt.Printf("Failed to bind JSON: %v\n", err)
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	task.UserID = c.GetInt("userID")
+	fmt.Printf("Received task data: %+v\n", task)
+
+	userID := c.GetInt("userID")
+	fmt.Printf("User ID from context: %d\n", userID)
+	task.UserID = userID
 
 	if err := h.taskService.Create(c.Request.Context(), &task); err != nil {
+		fmt.Printf("Failed to create task: %v\n", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
+
+	fmt.Printf("Task created successfully: %+v\n", task)
+	fmt.Println("=== CreateTask End ===\n")
 
 	c.JSON(http.StatusCreated, task)
 }

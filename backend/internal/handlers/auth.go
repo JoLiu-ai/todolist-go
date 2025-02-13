@@ -178,7 +178,7 @@ func (h *AuthHandler) GetProfile(c *gin.Context) {
 	userID := c.GetInt("userID")
 	user, err := h.repo.GetUserByID(c.Request.Context(), userID)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
+		c.JSON(http.StatusNotFound, gin.H{"error": "用户不存在"})
 		return
 	}
 
@@ -199,13 +199,13 @@ func (h *AuthHandler) UpdateProfile(c *gin.Context) {
 	delete(updates, "password")
 
 	if err := h.repo.UpdateUser(c.Request.Context(), userID, updates); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update profile"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "更新用户信息失败"})
 		return
 	}
 
 	user, err := h.repo.GetUserByID(c.Request.Context(), userID)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
+		c.JSON(http.StatusNotFound, gin.H{"error": "用户不存在"})
 		return
 	}
 
@@ -226,28 +226,28 @@ func (h *AuthHandler) ChangePassword(c *gin.Context) {
 
 	user, err := h.repo.GetUserByID(c.Request.Context(), userID)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
+		c.JSON(http.StatusNotFound, gin.H{"error": "用户不存在"})
 		return
 	}
 
 	// 验证旧密码
 	if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(req.OldPassword)); err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid old password"})
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "旧密码错误"})
 		return
 	}
 
 	// 加密新密码
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(req.NewPassword), bcrypt.DefaultCost)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to hash password"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "密码加密失败"})
 		return
 	}
 
 	// 更新密码
 	if err := h.repo.UpdatePassword(c.Request.Context(), userID, string(hashedPassword)); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update password"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "更新密码失败"})
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "Password updated successfully"})
+	c.JSON(http.StatusOK, gin.H{"message": "密码更新成功"})
 }

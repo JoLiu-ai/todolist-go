@@ -1,120 +1,147 @@
-import React, { useState, useEffect } from 'react';
-import { useLocation, Link } from 'react-router-dom';
-import { BookOpenIcon, FilmIcon, PlusIcon } from '@heroicons/react/24/outline';
-import Layout from '../components/Layout';
-import { api } from '../api/client';
+import React, { useState } from 'react';
+import { useParams, useNavigate, useLocation, Link } from 'react-router-dom';
 import { Media, MediaType } from '../types/media';
+import MediaCard from '../components/MediaCard';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { fetchMediaList, deleteMedia } from '../api/media';
+import { PlusIcon, BookOpenIcon, FilmIcon, TrashIcon } from '@heroicons/react/24/outline';
+import Layout from '../components/Layout';
 
-interface MediaStats {
-  total_books: number;
-  reading_books: number;
-  total_movies: number;
-  watching_movies: number;
-}
+export default function MediaPage() {
+  const location = useLocation();
+  const mediaType = location.pathname.startsWith('/movies') ? 'movie' : 'book';
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const [isDeleting, setIsDeleting] = useState(false);
 
-interface MediaPageProps {
-  type: MediaType;
-}
+  const { data, isLoading, error } = useQuery({
+    queryKey: ['media', mediaType],
+    queryFn: () => fetchMediaList({ type: mediaType }),
+  });
 
-export default function MediaPage({ type }: MediaPageProps) {
-  const [items, setItems] = useState<Media[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
+  const deleteMutation = useMutation({
+    mutationFn: deleteMedia,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['media'] });
+    },
+  });
 
-  useEffect(() => {
-    const fetchMedia = async () => {
-      try {
-        const data = await api.media.getAll({ type });
-        setItems(data || []);
-      } catch (err) {
-        console.error('获取媒体列表失败:', err);
-        setError(err instanceof Error ? err.message : '获取媒体列表失败，请稍后重试');
-      } finally {
-        setLoading(false);
+  const handleDeleteAll = async () => {
+    if (!data?.items || data.items.length === 0 || !window.confirm('确定要删除所有影视记录吗？此操作不可恢复。')) {
+      return;
+    }
+
+    setIsDeleting(true);
+    try {
+      for (const media of data.items) {
+        await deleteMutation.mutateAsync(media.id);
       }
-    };
+      alert('所有影视记录已删除');
+      queryClient.invalidateQueries({ queryKey: ['media'] });
+    } catch (error) {
+      console.error('删除失败:', error);
+      alert('删除失败，请重试');
+    } finally {
+      setIsDeleting(false);
+    }
+  };
 
-    fetchMedia();
-  }, [type]);
+  if (isLoading) {
+    return (
+      <Layout>
+        <div className="p-6">
+          <div className="animate-pulse space-y-4">
+            {[...Array(6)].map((_, i) => (
+              <div key={i} className="h-48 bg-gray-200 rounded-lg" />
+            ))}
+          </div>
+        </div>
+      </Layout>
+    );
+  }
+
+  if (error) {
+    return (
+      <Layout>
+        <div className="p-6">
+          <div className="text-red-500">加载失败</div>
+        </div>
+      </Layout>
+    );
+  }
+
+  const mediaList = data?.items || [];
 
   return (
     <Layout>
-      <div className="p-8">
-        {/* Header */}
+      <div className="p-6">
+        {/* 头部区域 */}
         <div className="flex justify-between items-center mb-6">
-          <h2 className="text-2xl font-serif text-[#2c2c2c] flex items-center">
-            {type === 'book' ? (
+          <h1 className="text-2xl font-serif text-[#2c2c2c] flex items-center">
+            {mediaType === 'book' ? (
               <>
-                <BookOpenIcon className="w-6 h-6 mr-2 text-[#d4b483]" />
+                <BookOpenIcon className="w-7 h-7 mr-3 text-[#d4b483]" />
                 我的书架
               </>
             ) : (
               <>
-                <FilmIcon className="w-6 h-6 mr-2 text-[#d4b483]" />
+                <FilmIcon className="w-7 h-7 mr-3 text-[#d4b483]" />
                 我的影视
               </>
             )}
-          </h2>
-          <Link
-            to={`/${type === 'book' ? 'books' : 'movies'}/create`}
-            className="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-[#d4b483] rounded-sm hover:bg-[#c9a978] transition-colors"
-          >
-            <PlusIcon className="w-4 h-4 mr-2" />
-            {type === 'book' ? '添加书籍' : '添加影视'}
-          </Link>
+          </h1>
+          <div className="flex gap-2">
+            {mediaType === 'movie' && data?.items && data.items.length > 0 && (
+              <button
+                onClick={handleDeleteAll}
+                disabled={isDeleting}
+                className="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-red-500 rounded-lg hover:bg-red-600 transition-colors shadow-sm hover:shadow disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <TrashIcon className="w-5 h-5 mr-1" />
+                {isDeleting ? '正在删除...' : '删除全部'}
+              </button>
+            )}
+            <Link
+              to={`/${mediaType === 'book' ? 'books' : 'movies'}/create`}
+              className="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-[#d4b483] rounded-lg hover:bg-[#c9a978] transition-colors shadow-sm hover:shadow"
+            >
+              <PlusIcon className="w-5 h-5 mr-1" />
+              添加{mediaType === 'book' ? '书籍' : '影视'}
+            </Link>
+          </div>
         </div>
 
-        {/* Error message */}
-        {error && (
-          <div className="mb-6 p-4 bg-red-50 text-red-600 rounded-sm border border-red-200">
-            {error}
-          </div>
-        )}
-
-        {/* Loading state */}
-        {loading ? (
+        {mediaList.length === 0 ? (
           <div className="text-center py-12">
-            <div className="inline-block animate-spin rounded-full h-8 w-8 border-4 border-[#d4b483] border-t-transparent"></div>
-          </div>
-        ) : items.length === 0 ? (
-          <div className="text-center py-12 text-gray-500">
-            暂无{type === 'book' ? '书籍' : '影视'}记录，点击右上角按钮添加
+            <div className="mb-4">
+              {mediaType === 'book' ? (
+                <BookOpenIcon className="w-16 h-16 mx-auto text-gray-300" />
+              ) : (
+                <FilmIcon className="w-16 h-16 mx-auto text-gray-300" />
+              )}
+            </div>
+            <h3 className="text-lg font-medium text-gray-900 mb-2">
+              还没有{mediaType === 'book' ? '书籍' : '影视'}记录
+            </h3>
+            <p className="text-sm text-gray-500 mb-6">
+              开始记录你的{mediaType === 'book' ? '阅读' : '观影'}之旅吧
+            </p>
+            <Link
+              to={`/${mediaType === 'book' ? 'books' : 'movies'}/create`}
+              className="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-[#d4b483] rounded-lg hover:bg-[#c9a978] transition-colors shadow-sm hover:shadow"
+            >
+              <PlusIcon className="w-5 h-5 mr-1" />
+              添加{mediaType === 'book' ? '书籍' : '影视'}
+            </Link>
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            {items.map((item) => (
-              <Link
-                key={item.id}
-                to={`/${type === 'book' ? 'books' : 'movies'}/${item.id}`}
-                className="group block bg-white rounded-lg shadow-sm hover:shadow-md transition-shadow duration-200 overflow-hidden border border-gray-100"
-              >
-                {/* Media card content */}
-                <div className="p-5">
-                  <h3 className="text-lg font-medium text-gray-900 group-hover:text-[#d4b483] transition-colors mb-2">
-                    {item.display_name.primary}
-                  </h3>
-                  {item.description?.primary && (
-                    <p className="text-sm text-gray-600 line-clamp-2">
-                      {item.description.primary}
-                    </p>
-                  )}
-                  <div className="mt-3 flex items-center text-sm text-gray-500">
-                    <span className={`px-2 py-1 rounded-full text-xs ${
-                      item.status === 'finished' ? 'bg-green-100 text-green-800' :
-                      item.status === 'ongoing' ? 'bg-blue-100 text-blue-800' :
-                      item.status === 'wishlist' ? 'bg-yellow-100 text-yellow-800' :
-                      'bg-gray-100 text-gray-800'
-                    }`}>
-                      {item.status === 'finished' ? '已完成' :
-                       item.status === 'ongoing' ? '进行中' :
-                       item.status === 'wishlist' ? '想看' : '已弃'}
-                    </span>
-                    {item.rating > 0 && (
-                      <span className="ml-2">⭐️ {item.rating}</span>
-                    )}
-                  </div>
-                </div>
-              </Link>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {mediaList.map((media: Media) => (
+              <MediaCard
+                key={media.id}
+                media={media}
+                type={mediaType as MediaType}
+              />
             ))}
           </div>
         )}

@@ -8,6 +8,11 @@ DOCKER_CMD = docker compose -f $(DOCKER_COMPOSE)
 ENV_FILE = docker/local/.env
 ENV_EXAMPLE_FILE = docker/local/.env.example
 
+# Database URL construction
+define DATABASE_URL
+postgres://$(DB_USER):$(DB_PASSWORD)@$(DB_HOST):5432/$(DB_NAME)?sslmode=$(DB_SSL_MODE)
+endef
+
 .PHONY: up down build rebuild logs clean help export-env setup up-build ps restart-frontend restart-backend docker-build docker-up docker-down migrate-up migrate-down lint fmt tidy docker-dev
 
 # Default target
@@ -33,18 +38,41 @@ clean: down ## Clean up all containers, volumes and binary
 	docker system prune -f
 	cd backend && rm -rf bin/
 
-up: export-env ## Start all services
-	$(DOCKER_CMD) up -d
+up: export-env ## Start services (usage: make up service=backend)
+	@if [ "$(service)" ]; then \
+		$(DOCKER_CMD) up -d $(service); \
+	else \
+		$(DOCKER_CMD) up -d; \
+	fi
 
-down: ## Stop all services
-	$(DOCKER_CMD) down
+down: ## Stop services (usage: make down service=backend)
+	@if [ "$(service)" ]; then \
+		$(DOCKER_CMD) down $(service); \
+	else \
+		$(DOCKER_CMD) down; \
+	fi
 
 rebuild: down export-env ## Rebuild and restart all services
 	$(DOCKER_CMD) build --no-cache
 	$(DOCKER_CMD) up -d
 
-logs: ## View logs of all services
-	$(DOCKER_CMD) logs -f
+logs: ## View logs (usage: make logs service=backend)
+	@if [ "$(service)" ]; then \
+		$(DOCKER_CMD) logs -f $(service); \
+	else \
+		$(DOCKER_CMD) logs -f; \
+	fi
+
+exec: ## Execute command in container (usage: make exec service=backend cmd="sh")
+	@if [ "$(service)" ] && [ "$(cmd)" ]; then \
+		$(DOCKER_CMD) exec $(service) $(cmd); \
+	else \
+		echo "Usage: make exec service=<service_name> cmd=<command>"; \
+		exit 1; \
+	fi
+
+%: ## Catch-all target for passing arguments
+	@:
 
 frontend-shell: ## Open a shell in the frontend container
 	$(DOCKER_CMD) exec frontend sh
@@ -89,14 +117,20 @@ setup: ## Setup initial configuration
 up-build: setup ## Build and start all services
 	$(DOCKER_CMD) up --build
 
-ps: ## Show running containers
-	$(DOCKER_CMD) ps
+ps: ## List containers (usage: make ps service=backend)
+	@if [ "$(service)" ]; then \
+		$(DOCKER_CMD) ps | grep $(service); \
+	else \
+		$(DOCKER_CMD) ps; \
+	fi
 
-restart-frontend: ## Restart frontend container
-	$(DOCKER_CMD) restart frontend
-
-restart-backend: ## Restart backend container
-	$(DOCKER_CMD) restart backend
+restart: ## Restart services (usage: make restart service=backend)
+	@if [ "$(service)" ]; then \
+		$(DOCKER_CMD) restart $(service); \
+	else \
+		echo "Usage: make restart service=<service_name>"; \
+		exit 1; \
+	fi
 
 run: ## Run backend application
 	cd backend && go run cmd/main.go
@@ -104,11 +138,17 @@ run: ## Run backend application
 test: test-frontend test-backend ## Run all tests
 
 # Database migration commands
-migrate-up: ## Run database migrations up
-	cd backend && go run cmd/migrate/main.go up
+migrate-deps: ## Install migration dependencies
+	cd backend && go get -u github.com/golang-migrate/migrate/v4
+	cd backend && go get -u github.com/golang-migrate/migrate/v4/database/postgres
+	cd backend && go get -u github.com/golang-migrate/migrate/v4/source/file
+	cd backend && go mod tidy
 
-migrate-down: ## Run database migrations down
-	cd backend && go run cmd/migrate/main.go down
+migrate-up: migrate-deps ## Run database migrations up
+	$(DOCKER_CMD) exec backend sh -c 'cd /app && DATABASE_URL="postgres://$$DB_USER:$$DB_PASSWORD@db:5432/$$DB_NAME?sslmode=$$DB_SSL_MODE" go run cmd/migrate/main.go -direction up'
+
+migrate-down: migrate-deps ## Run database migrations down
+	$(DOCKER_CMD) exec backend sh -c 'cd /app && DATABASE_URL="postgres://$$DB_USER:$$DB_PASSWORD@db:5432/$$DB_NAME?sslmode=$$DB_SSL_MODE" go run cmd/migrate/main.go -direction down'
 
 # Development helper commands
 lint: ## Run backend linter

@@ -24,40 +24,47 @@ export default function EditTaskPage() {
   const navigate = useNavigate();
   const { id } = useParams();
   const { isAuthenticated } = useAuth();
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<TaskFormData>({
     title: '',
     description: '',
     priority: 1,
     category: 'other',
     due_date: '',
-  } as TaskFormData);
+  });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // 如果未登录，重定向到登录页面
     if (!isAuthenticated) {
       navigate('/login', { state: { message: '请先登录' } });
       return;
     }
 
-    // 获取任务详情
     const fetchTask = async () => {
       try {
         if (!id) return;
-        const task = await taskApi.getById(parseInt(id));
-        console.log('Fetched task:', task);
+        const taskId = parseInt(id);
+        if (isNaN(taskId)) {
+          throw new Error('无效的任务ID');
+        }
         
+        const task = await taskApi.getById(taskId);
+        
+        if (!task) {
+          throw new Error('未找到该任务');
+        }
+
         setFormData({
-          title: task.title,
+          title: task.title || '',
           description: task.description || '',
-          priority: task.priority,
+          priority: task.priority || 1,
           category: task.category || 'other',
           due_date: task.due_date ? new Date(task.due_date).toISOString().slice(0, 16) : '',
         });
       } catch (err) {
         console.error('获取任务详情失败:', err);
         setError(err instanceof Error ? err.message : '获取任务详情失败');
+        navigate('/tasks');
       } finally {
         setLoading(false);
       }
@@ -73,13 +80,11 @@ export default function EditTaskPage() {
     try {
       if (!id) return;
       
-      // 转换日期时间格式为 RFC3339
       const formattedData = {
         ...formData,
         due_date: formData.due_date ? new Date(formData.due_date).toISOString() : '',
       };
 
-      console.log('Updating task with data:', formattedData);
       await taskApi.update(parseInt(id), formattedData);
       navigate('/tasks');
     } catch (err) {
@@ -90,7 +95,6 @@ export default function EditTaskPage() {
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
-    // 对于 priority 字段，将字符串转换为数字
     const finalValue = name === 'priority' ? parseInt(value, 10) : value;
     setFormData((prev: TaskFormData) => ({ ...prev, [name]: finalValue }));
   };
@@ -99,7 +103,7 @@ export default function EditTaskPage() {
     return (
       <Layout>
         <div className="p-8 flex items-center justify-center">
-          <div className="text-gray-500">加载中...</div>
+          <div className="text-[#d4b483] animate-pulse">加载中...</div>
         </div>
       </Layout>
     );
@@ -108,29 +112,28 @@ export default function EditTaskPage() {
   return (
     <Layout>
       <div className="p-8">
-        {/* 面包屑导航 */}
         <div className="mb-8">
           <nav className="flex" aria-label="Breadcrumb">
             <ol className="flex items-center space-x-2">
               <li>
-                <Link to="/" className="flex items-center">
-                  <HomeIcon className="w-4 h-4 text-gray-400" />
-                  <span className="ml-2 text-sm font-medium text-gray-500">首页</span>
+                <Link to="/" className="flex items-center group">
+                  <HomeIcon className="w-4 h-4 text-[#d4b483]" />
+                  <span className="ml-2 text-sm font-medium text-gray-500 group-hover:text-[#d4b483] transition-colors">首页</span>
                 </Link>
               </li>
               <li>
                 <div className="flex items-center">
-                  <span className="mx-2 text-gray-400">/</span>
-                  <Link to="/tasks" className="flex items-center">
-                    <ClipboardDocumentListIcon className="w-4 h-4 text-gray-400" />
-                    <span className="ml-2 text-sm font-medium text-gray-500">任务</span>
+                  <span className="mx-2 text-[#d4b483]">/</span>
+                  <Link to="/tasks" className="flex items-center group">
+                    <ClipboardDocumentListIcon className="w-4 h-4 text-[#d4b483]" />
+                    <span className="ml-2 text-sm font-medium text-gray-500 group-hover:text-[#d4b483] transition-colors">任务</span>
                   </Link>
                 </div>
               </li>
               <li>
                 <div className="flex items-center">
-                  <span className="mx-2 text-gray-400">/</span>
-                  <span className="text-sm font-medium text-gray-500">编辑任务</span>
+                  <span className="mx-2 text-[#d4b483]">/</span>
+                  <span className="text-sm font-medium text-[#d4b483]">编辑任务</span>
                 </div>
               </li>
             </ol>
@@ -142,7 +145,7 @@ export default function EditTaskPage() {
           <h2 className="text-2xl font-serif text-[#2c2c2c] mb-6">编辑任务</h2>
           
           {error && (
-            <div className="mb-6 p-4 bg-red-50 text-red-600 rounded-sm">
+            <div className="mb-6 p-4 bg-red-50 text-red-600 rounded-sm border border-red-200">
               {error}
             </div>
           )}

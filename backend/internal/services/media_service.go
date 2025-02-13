@@ -28,6 +28,9 @@ type MediaService interface {
 	CreateMovieDetails(ctx context.Context, details *models.MovieDetails) error
 	GetMovieDetails(ctx context.Context, mediaID int) (*models.MovieDetails, error)
 	UpdateMovieDetails(ctx context.Context, details *models.MovieDetails) error
+
+	GetStats(ctx context.Context, userID uint) (*models.MediaStats, error)
+	GetRecent(ctx context.Context, userID uint, limit int) ([]*models.Media, error)
 }
 
 // mediaService implements MediaService interface
@@ -41,7 +44,30 @@ func NewMediaService(repo *repository.MediaRepository) MediaService {
 }
 
 func (s *mediaService) Create(ctx context.Context, media *models.Media) error {
-	return s.repo.Create(ctx, media)
+	// 创建基本的媒体记录
+	if err := s.repo.Create(ctx, media); err != nil {
+		return err
+	}
+
+	// 根据媒体类型创建对应的详情记录
+	switch media.Type {
+	case "movie":
+		details := &models.MovieDetails{
+			MediaID: media.ID,
+		}
+		if err := s.repo.CreateMovieDetails(ctx, details); err != nil {
+			return err
+		}
+	case "book":
+		details := &models.BookDetails{
+			MediaID: media.ID,
+		}
+		if err := s.repo.CreateBookDetails(ctx, details); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 func (s *mediaService) GetByID(ctx context.Context, id, userID int) (*models.Media, error) {
@@ -77,11 +103,11 @@ func (s *mediaService) CreateNote(ctx context.Context, mediaID int, note *models
 }
 
 func (s *mediaService) UpdateNote(ctx context.Context, mediaID int, note *models.Note) error {
-	return s.repo.CreateNote(ctx, mediaID, note)
+	return s.repo.UpdateNote(ctx, mediaID, note)
 }
 
 func (s *mediaService) DeleteNote(ctx context.Context, mediaID, noteID int) error {
-	return s.repo.CreateNote(ctx, mediaID, &models.Note{})
+	return s.repo.DeleteNote(ctx, mediaID, noteID)
 }
 
 func (s *mediaService) CreateBookDetails(ctx context.Context, details *models.BookDetails) error {
@@ -106,4 +132,15 @@ func (s *mediaService) GetMovieDetails(ctx context.Context, mediaID int) (*model
 
 func (s *mediaService) UpdateMovieDetails(ctx context.Context, details *models.MovieDetails) error {
 	return s.repo.UpdateMovieDetails(ctx, details)
+}
+
+func (s *mediaService) GetStats(ctx context.Context, userID uint) (*models.MediaStats, error) {
+	return s.repo.GetStats(ctx, userID)
+}
+
+func (s *mediaService) GetRecent(ctx context.Context, userID uint, limit int) ([]*models.Media, error) {
+	if limit <= 0 {
+		limit = 5 // 默认返回5条
+	}
+	return s.repo.GetRecent(ctx, userID, limit)
 }

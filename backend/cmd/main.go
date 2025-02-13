@@ -8,9 +8,6 @@ import (
 	"cute-todo/backend/internal/services"
 	"fmt"
 	"log"
-
-	"gorm.io/driver/postgres"
-	"gorm.io/gorm"
 )
 
 func main() {
@@ -20,8 +17,8 @@ func main() {
 		log.Fatal("Failed to load config:", err)
 	}
 
-	// 连接数据库
-	db, err := gorm.Open(postgres.Open(cfg.DatabaseURL), &gorm.Config{})
+	// 使用新的数据库配置连接数据库
+	db, err := config.NewGormDB()
 	if err != nil {
 		log.Fatal("Failed to connect to database:", err)
 	}
@@ -34,12 +31,14 @@ func main() {
 
 	// 初始化服务
 	mediaService := services.NewMediaService(mediaRepo)
+	taskService := services.NewTaskService(taskRepo)
+	knowledgeService := services.NewKnowledgeService(knowledgeRepo)
 
 	// 初始化处理器
-	taskHandler := handlers.NewTaskHandler(taskRepo)
+	taskHandler := handlers.NewTaskHandler(taskService)
 	mediaHandler := handlers.NewMediaHandler(mediaService, mediaRepo)
 	authHandler := handlers.NewAuthHandler(cfg.JWTSecret, authRepo)
-	knowledgeHandler := handlers.NewKnowledgeHandler(knowledgeRepo)
+	knowledgeHandler := handlers.NewKnowledgeHandler(knowledgeService)
 
 	// 设置路由
 	r := router.SetupRouter(authHandler, mediaHandler, taskHandler, knowledgeHandler)

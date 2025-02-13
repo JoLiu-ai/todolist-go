@@ -22,7 +22,7 @@ export default function TaskDetailPage() {
     const fetchTask = async () => {
       try {
         if (!id) return;
-        const data = await taskApi.getTask(parseInt(id));
+        const data = await taskApi.getById(parseInt(id));
         setTask(data);
       } catch (err) {
         console.error('获取任务详情失败:', err);

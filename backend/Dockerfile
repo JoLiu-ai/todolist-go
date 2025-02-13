@@ -28,6 +28,8 @@ COPY --from=builder /app/main .
 RUN chmod +x main && \
     ls -la main
 COPY --from=builder /app/.env.docker .env
+# 复制migrations目录
+COPY --from=builder /app/migrations ./migrations
 
 # 暴露端口
 EXPOSE 8080

@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"cute-todo/backend/internal/models"
@@ -18,7 +19,18 @@ func NewTaskRepository(db *gorm.DB) *TaskRepository {
 }
 
 func (r *TaskRepository) Create(ctx context.Context, task *models.Task) error {
-	return r.db.WithContext(ctx).Create(task).Error
+	fmt.Printf("\n=== TaskRepository.Create Start ===\n")
+	fmt.Printf("Creating task in database: %+v\n", task)
+
+	err := r.db.WithContext(ctx).Create(task).Error
+	if err != nil {
+		fmt.Printf("Database error while creating task: %v\n", err)
+		return err
+	}
+
+	fmt.Printf("Task created in database: %+v\n", task)
+	fmt.Println("=== TaskRepository.Create End ===\n")
+	return nil
 }
 
 func (r *TaskRepository) Update(ctx context.Context, id int, task *models.Task) error {
@@ -77,7 +89,10 @@ func (r *TaskRepository) List(ctx context.Context, userID int) ([]models.Task, e
 		Where("user_id = ?", userID).
 		Order("created_at desc").
 		Find(&tasks).Error
-	return tasks, err
+	if err != nil {
+		return nil, err
+	}
+	return tasks, nil
 }
 
 func (r *TaskRepository) GetTodayTasks(ctx context.Context, userID int) ([]models.Task, error) {
@@ -87,7 +102,10 @@ func (r *TaskRepository) GetTodayTasks(ctx context.Context, userID int) ([]model
 		Where("user_id = ? AND DATE(due_date) = ?", userID, today).
 		Order("priority desc").
 		Find(&tasks).Error
-	return tasks, err
+	if err != nil {
+		return nil, err
+	}
+	return tasks, nil
 }
 
 func (r *TaskRepository) GetTaskStats(ctx context.Context, userID int) (*models.TaskStats, error) {
@@ -95,34 +113,30 @@ func (r *TaskRepository) GetTaskStats(ctx context.Context, userID int) (*models.
 	today := time.Now().Format("2006-01-02")
 
 	// 获取总任务数
-	err := r.db.WithContext(ctx).Model(&models.Task{}).
+	if err := r.db.WithContext(ctx).Model(&models.Task{}).
 		Where("user_id = ?", userID).
-		Count(&stats.TotalTasks).Error
-	if err != nil {
+		Count(&stats.TotalTasks).Error; err != nil {
 		return nil, err
 	}
 
 	// 获取已完成任务数
-	err = r.db.WithContext(ctx).Model(&models.Task{}).
+	if err := r.db.WithContext(ctx).Model(&models.Task{}).
 		Where("user_id = ? AND status = ?", userID, "completed").
-		Count(&stats.CompletedTasks).Error
-	if err != nil {
+		Count(&stats.CompletedTasks).Error; err != nil {
 		return nil, err
 	}
 
-	// 获取待办任务数
-	err = r.db.WithContext(ctx).Model(&models.Task{}).
-		Where("user_id = ? AND status = ?", userID, "pending").
-		Count(&stats.PendingTasks).Error
-	if err != nil {
+	// 获取待处理任务数
+	if err := r.db.WithContext(ctx).Model(&models.Task{}).
+		Where("user_id = ? AND status != ?", userID, "completed").
+		Count(&stats.PendingTasks).Error; err != nil {
 		return nil, err
 	}
 
-	// 获取过期任务数
-	err = r.db.WithContext(ctx).Model(&models.Task{}).
-		Where("user_id = ? AND status != ? AND DATE(due_date) < ?", userID, "completed", today).
-		Count(&stats.OverdueTasks).Error
-	if err != nil {
+	// 获取逾期任务数
+	if err := r.db.WithContext(ctx).Model(&models.Task{}).
+		Where("user_id = ? AND status != ? AND due_date < ?", userID, "completed", today).
+		Count(&stats.OverdueTasks).Error; err != nil {
 		return nil, err
 	}
 

@@ -18,7 +18,7 @@ const CATEGORY_LABELS: Record<string, { text: string, className: string }> = {
 };
 
 export default function TaskListPage() {
-  const [tasks, setTasks] = useState<Task[]>([]);
+  const [tasks, setTasks] = useState([] as Task[]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const navigate = useNavigate();
