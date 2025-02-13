@@ -2,22 +2,21 @@ import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { HomeIcon, AcademicCapIcon } from '@heroicons/react/24/outline';
 import Layout from '../components/Layout';
-import { api, KnowledgeData } from '../api/client';
+import { api } from '../api/client';
+import { CreateKnowledgeData } from '../types/types';
 import { withAuth } from '@/components/withAuth';
 
-type CreateKnowledgeFormData = Omit<KnowledgeData, 'id' | 'created_at' | 'updated_at'>;
+type CreateKnowledgeFormData = Omit<CreateKnowledgeData, 'id' | 'created_at' | 'updated_at'>;
 
 const initialFormData: CreateKnowledgeFormData = {
   title: '',
   content: '',
-  category: 'other',
-  tags: [],
+  category: 'technology'
 };
 
 function CreateKnowledgePage() {
   const navigate = useNavigate();
   const [formData, setFormData] = useState(initialFormData);
-  const [tagInput, setTagInput] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -29,9 +28,9 @@ function CreateKnowledgePage() {
     try {
       await api.knowledge.create(formData);
       navigate('/knowledge');
-    } catch (err) {
-      console.error('创建失败:', err);
-      setError(err instanceof Error ? err.message : '创建失败，请稍后重试');
+    } catch (error) {
+      console.error('Failed to create knowledge:', error);
+      setError(error instanceof Error ? error.message : '创建失败');
     } finally {
       setLoading(false);
     }
@@ -42,24 +41,6 @@ function CreateKnowledgePage() {
   ) => {
     const { name, value } = e.target;
     setFormData((prev: CreateKnowledgeFormData) => ({ ...prev, [name]: value }));
-  };
-
-  const handleAddTag = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && tagInput.trim()) {
-      e.preventDefault();
-      setFormData((prev: CreateKnowledgeFormData) => ({
-        ...prev,
-        tags: [...(prev.tags || []), tagInput.trim()]
-      }));
-      setTagInput('');
-    }
-  };
-
-  const handleRemoveTag = (tagToRemove: string) => {
-    setFormData((prev: CreateKnowledgeFormData) => ({
-      ...prev,
-      tags: (prev.tags || []).filter((tag: string) => tag !== tagToRemove)
-    }));
   };
 
   return (
@@ -104,60 +85,23 @@ function CreateKnowledgePage() {
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-6">
-              <div>
-                <label htmlFor="category" className="block text-sm font-medium text-gray-700 mb-1">
-                  分类
-                </label>
-                <select
-                  id="category"
-                  name="category"
-                  value={formData.category}
-                  onChange={handleChange}
-                  className="w-full p-3 text-sm border border-gray-200 rounded-sm focus:outline-none focus:border-[#d4b483] focus:ring-1 focus:ring-[#d4b483]"
-                >
-                  <option value="technology">技术</option>
-                  <option value="life">生活</option>
-                  <option value="work">工作</option>
-                  <option value="other">其他</option>
-                </select>
-              </div>
-
-              <div>
-                <label htmlFor="tags" className="block text-sm font-medium text-gray-700 mb-1">
-                  标签
-                </label>
-                <input
-                  type="text"
-                  id="tags"
-                  value={tagInput}
-                  onChange={(e) => setTagInput(e.target.value)}
-                  onKeyDown={handleAddTag}
-                  placeholder="输入标签后按回车添加"
-                  className="w-full p-3 text-sm border border-gray-200 rounded-sm focus:outline-none focus:border-[#d4b483] focus:ring-1 focus:ring-[#d4b483]"
-                />
-              </div>
+            <div>
+              <label htmlFor="category" className="block text-sm font-medium text-gray-700 mb-1">
+                分类
+              </label>
+              <select
+                id="category"
+                name="category"
+                value={formData.category}
+                onChange={handleChange}
+                className="w-full p-3 text-sm border border-gray-200 rounded-sm focus:outline-none focus:border-[#d4b483] focus:ring-1 focus:ring-[#d4b483]"
+              >
+                <option value="technology">技术</option>
+                <option value="life">生活</option>
+                <option value="work">工作</option>
+                <option value="other">其他</option>
+              </select>
             </div>
-
-            {formData.tags && formData.tags.length > 0 && (
-              <div className="flex flex-wrap gap-2">
-                {formData.tags.map((tag: string) => (
-                  <span
-                    key={tag}
-                    className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-[#f7f3eb] text-[#d4b483]"
-                  >
-                    {tag}
-                    <button
-                      type="button"
-                      onClick={() => handleRemoveTag(tag)}
-                      className="ml-2 text-[#d4b483] hover:text-[#c9a978]"
-                    >
-                      ×
-                    </button>
-                  </span>
-                ))}
-              </div>
-            )}
 
             <div>
               <label htmlFor="content" className="block text-sm font-medium text-gray-700 mb-1">

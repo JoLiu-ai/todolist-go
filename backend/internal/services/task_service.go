@@ -26,21 +26,15 @@ func (s *TaskService) Create(ctx context.Context, task *models.Task) error {
 		return err
 	}
 
-	fmt.Printf("Task created successfully: %+v\n", task)
-	fmt.Println("=== TaskService.Create End ===\n")
 	return nil
 }
 
 // GetByID 根据ID获取任务
 func (s *TaskService) GetByID(ctx context.Context, id, userID int) (*models.Task, error) {
-	fmt.Printf("\n=== TaskService.GetByID called ===\n")
-	fmt.Printf("查找任务 - ID: %d, 用户ID: %d\n", id, userID)
 	task, err := s.repo.GetByID(ctx, id, userID)
 	if err != nil {
-		fmt.Printf("数据库查询失败: %v\n", err)
 		return nil, err
 	}
-	fmt.Printf("查询结果: %+v\n", task)
 	return task, nil
 }
 

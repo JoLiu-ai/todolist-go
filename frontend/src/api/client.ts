@@ -44,6 +44,9 @@ async function request<T>(endpoint: string, config: RequestConfig = {}): Promise
     ...customHeaders,
   };
 
+  // 打印认证信息
+  console.log('[API Request] Auth Token:', token);
+
   console.log(`[API Request] ${config.method || 'GET'} ${endpoint}`);
   console.log('[API Request] Headers:', headers);
 
@@ -171,6 +174,10 @@ export interface ApiResponse<T> {
   message?: string;
 }
 
+interface CreateMediaData extends Partial<Media> {
+  title?: string;
+}
+
 export const api = {
   auth: {
     register: (data: { username: string; email: string; password: string }) =>
@@ -191,13 +198,14 @@ export const api = {
   media: {
     getAll: (params: GetMediaParams) => dynamicClient.get<MediaListResponse>(endpoints.media.base, { params }),
     getById: (id: number) => dynamicClient.get<Media>(endpoints.media.detail(id)),
-    create: (data: Partial<Media>) => {
+    create: (data: CreateMediaData) => {
       // 检查必要字段
       if (!data.type) {
         throw new Error('媒体类型(type)是必需的，请选择 book 或 movie');
       }
-      if (!data.display_name?.primary) {
-        throw new Error('标题(display_name.primary)是必需的');
+      const title = data.title?.trim() || data.display_name?.primary?.trim();
+      if (!title) {
+        throw new Error('标题是必需的');
       }
       if (!data.status) {
         throw new Error('状态(status)是必需的，可选值: in_progress, completed, plan_to_read, dropped');
@@ -211,19 +219,24 @@ export const api = {
 
       // 转换数据格式以匹配后端期望的结构
       const payload = {
-        // 必需字段
-        type: data.type,                          // 必需: 'book' | 'movie'
-        title: data.display_name.primary,         // 必需: 标题
-        status: data.status,                      // 必需: 'in_progress' | 'completed' | 'plan_to_read' | 'dropped'
-
-        // 可选字段（带默认值）
-        description: data.description || '',      // 可选: 描述
-        creator: data.creator || '',             // 可选: 作者/导演
-        rating: data.rating || 0,                // 可选: 评分 (0-5)
-        resource_link: data.resource_link || '', // 可选: 资源链接
-        cover_image: data.cover_image || '',     // 可选: 封面图片
-        tags: data.tags || [],                   // 可选: 标签数组
-        progress: data.progress || 0,            // 可选: 进度
+        type: data.type,
+        title: title,  // 使用已验证的title
+        desc_text: data.description || '',  // 数据库字段
+        display_name: {
+          primary: title,  // 使用已验证的title
+          secondary: data.display_name?.secondary?.trim() || ''
+        },
+        description: {
+          primary: data.description || '',
+          secondary: ''
+        },
+        creator: data.creator || '',
+        status: data.status,
+        rating: data.rating || 0,
+        resource_link: data.resource_link || '',
+        cover_image: data.cover_image || '',
+        tags: data.tags || [],
+        progress: data.progress || 0
       };
       
       // 打印完整的请求信息
@@ -237,37 +250,7 @@ export const api = {
         payload,
       });
 
-      return dynamicClient.post<Media>(endpoints.media.base, payload).catch(error => {
-        // 如果是 400 错误，尝试提供更多上下文
-        if (error.response?.status === 400) {
-          console.error('[Media Create] Validation Error:', {
-            payload,
-            error: error.data,
-          });
-          
-          // 尝试从错误响应中提取更有用的信息
-          let errorMessage = '创建失败: ';
-          if (error.data?.error) {
-            errorMessage += typeof error.data.error === 'string' 
-              ? error.data.error 
-              : JSON.stringify(error.data.error);
-          } else if (error.data?.message) {
-            errorMessage += error.data.message;
-          } else if (error.message) {
-            errorMessage += error.message;
-          } else {
-            errorMessage += '服务器返回了一个错误，但没有提供具体原因';
-          }
-          
-          errorMessage += '\n\n当前提交的数据:\n';
-          errorMessage += `- 类型: ${payload.type}\n`;
-          errorMessage += `- 标题: ${payload.title}\n`;
-          errorMessage += `- 状态: ${payload.status}`;
-          
-          throw new Error(errorMessage);
-        }
-        throw error;
-      });
+      return dynamicClient.post<Media>(endpoints.media.base, payload);
     },
     update: (id: number, data: Partial<Media>) => dynamicClient.put<Media>(endpoints.media.detail(id), data),
     delete: (id: number) => dynamicClient.delete<void>(endpoints.media.detail(id)),

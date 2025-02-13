@@ -2,6 +2,10 @@ package services
 
 import (
 	"context"
+	"errors"
+	"fmt"
+	"log"
+
 	"cute-todo/backend/internal/models"
 	"cute-todo/backend/internal/repository"
 )
@@ -44,29 +48,66 @@ func NewMediaService(repo *repository.MediaRepository) MediaService {
 }
 
 func (s *mediaService) Create(ctx context.Context, media *models.Media) error {
-	// 创建基本的媒体记录
+	log.Printf("[MediaService.Create] Starting media creation with data: %+v", media)
+
+	// 验证媒体数据
+	if err := s.validateMedia(media); err != nil {
+		log.Printf("[MediaService.Create] Validation failed: %v", err)
+		return fmt.Errorf("media validation failed: %v", err)
+	}
+
+	// 设置默认值
+	if media.Progress == 0 {
+		log.Printf("[MediaService.Create] Set default progress to 0")
+	}
+	if media.Rating == 0 {
+		log.Printf("[MediaService.Create] Set default rating to 0")
+	}
+
+	// 创建媒体记录
 	if err := s.repo.Create(ctx, media); err != nil {
-		return err
+		log.Printf("[MediaService.Create] Database error: %+v", err)
+		return fmt.Errorf("failed to create media in database: %v", err)
 	}
 
-	// 根据媒体类型创建对应的详情记录
-	switch media.Type {
-	case "movie":
-		details := &models.MovieDetails{
-			MediaID: media.ID,
-		}
-		if err := s.repo.CreateMovieDetails(ctx, details); err != nil {
-			return err
-		}
-	case "book":
-		details := &models.BookDetails{
-			MediaID: media.ID,
-		}
-		if err := s.repo.CreateBookDetails(ctx, details); err != nil {
-			return err
-		}
+	log.Printf("[MediaService.Create] Successfully created media with ID: %d", media.ID)
+	return nil
+}
+
+func (s *mediaService) validateMedia(media *models.Media) error {
+	log.Printf("[MediaService.validateMedia] Starting validation for media: %+v", media)
+
+	if media.Title == "" {
+		return errors.New("title is required")
+	}
+	if media.Type == "" {
+		return errors.New("type is required")
+	}
+	if media.Status == "" {
+		return errors.New("status is required")
 	}
 
+	// 验证类型
+	if media.Type != models.MediaTypeBook && media.Type != models.MediaTypeMovie {
+		log.Printf("[MediaService.validateMedia] Invalid type: %s", media.Type)
+		return fmt.Errorf("invalid media type: %s", media.Type)
+	}
+
+	// 验证状态
+	validStatuses := []string{models.StatusInProgress, models.StatusCompleted, models.StatusPlanToRead, models.StatusDropped}
+	isValidStatus := false
+	for _, status := range validStatuses {
+		if media.Status == status {
+			isValidStatus = true
+			break
+		}
+	}
+	if !isValidStatus {
+		log.Printf("[MediaService.validateMedia] Invalid status: %s", media.Status)
+		return fmt.Errorf("invalid status: %s", media.Status)
+	}
+
+	log.Printf("[MediaService.validateMedia] Validation passed")
 	return nil
 }
 

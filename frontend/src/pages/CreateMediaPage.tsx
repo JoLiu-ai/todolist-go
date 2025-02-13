@@ -5,31 +5,25 @@ import Layout from '../components/Layout';
 import { api } from '../api/client';
 import { MediaType, MediaStatus } from '../types/media';
 import { withAuth } from '@/components/withAuth';
+import { useAuth } from '../contexts/AuthContext';
 
 interface CreateMediaPageProps {
   type: MediaType;
-}
-
-interface CreateMediaData {
-  type: MediaType;
-  display_name: {
-    primary: string;
-    secondary?: string;
-  };
-  description?: string;
-  creator?: string;
-  status: MediaStatus;
-  rating: number;
-  resource_link?: string;
-  cover_image: string;
-  tags: string[];
-  progress: number;
 }
 
 function CreateMediaPage({ type }: CreateMediaPageProps) {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const { isAuthenticated, token, user } = useAuth();
+
+  console.log('[CreateMediaPage] Auth State:', {
+    isAuthenticated,
+    hasToken: !!token,
+    hasUser: !!user,
+    token,
+    user
+  });
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -38,10 +32,12 @@ function CreateMediaPage({ type }: CreateMediaPageProps) {
 
     try {
       const formData = new FormData(e.currentTarget);
+      const title = formData.get('title') as string;
       const data = {
         type,
+        title,
         display_name: {
-          primary: formData.get('title') as string,
+          primary: title,
           secondary: formData.get('originalTitle') as string || undefined,
         },
         description: formData.get('description') as string || '',
@@ -334,4 +330,4 @@ function CreateMediaPage({ type }: CreateMediaPageProps) {
   );
 }
 
-export default withAuth(CreateMediaPage, '请先登录后再添加内容'); 
+export default withAuth(CreateMediaPage, '请先登录后再创建媒体'); 

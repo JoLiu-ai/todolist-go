@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"errors"
 	"fmt"
 	"log"
 	"net/http"
@@ -58,18 +59,67 @@ func handleError(c *gin.Context, err error, status int) {
 func (h *MediaHandler) CreateMedia(c *gin.Context) {
 	var media models.Media
 	if err := c.ShouldBindJSON(&media); err != nil {
-		handleError(c, fmt.Errorf("invalid request body: %v", err), http.StatusBadRequest)
+		log.Printf("[CreateMedia] JSON binding error: %+v", err)
+		handleError(c, fmt.Errorf("invalid request data: %v", err), http.StatusBadRequest)
 		return
 	}
 
-	// 添加请求数据的日志
+	// 打印接收到的请求数据
 	log.Printf("[CreateMedia] Received request data: %+v", media)
 
-	media.UserID = c.GetInt("userID")
-	log.Printf("[CreateMedia] Set UserID: %d", media.UserID)
+	// 获取用户ID
+	userID, exists := c.Get("userID")
+	if !exists {
+		log.Printf("[CreateMedia] User ID not found in context")
+		handleError(c, errors.New("user not authenticated"), http.StatusUnauthorized)
+		return
+	}
 
-	if err := h.mediaService.Create(c.Request.Context(), &media); err != nil {
-		log.Printf("[CreateMedia] Failed to create media: %v", err)
+	// 设置用户ID
+	media.UserID = userID.(int)
+
+	// 验证必填字段
+	if media.Type == "" {
+		log.Printf("[CreateMedia] Missing required field: type")
+		handleError(c, errors.New("type is required"), http.StatusBadRequest)
+		return
+	}
+	if media.Title == "" {
+		log.Printf("[CreateMedia] Missing required field: title")
+		handleError(c, errors.New("title is required"), http.StatusBadRequest)
+		return
+	}
+	if media.Status == "" {
+		log.Printf("[CreateMedia] Missing required field: status")
+		handleError(c, errors.New("status is required"), http.StatusBadRequest)
+		return
+	}
+
+	// 验证类型值
+	if media.Type != models.MediaTypeBook && media.Type != models.MediaTypeMovie {
+		log.Printf("[CreateMedia] Invalid media type: %s", media.Type)
+		handleError(c, fmt.Errorf("invalid media type: %s", media.Type), http.StatusBadRequest)
+		return
+	}
+
+	// 验证状态值
+	validStatuses := []string{models.StatusInProgress, models.StatusCompleted, models.StatusPlanToRead, models.StatusDropped}
+	isValidStatus := false
+	for _, status := range validStatuses {
+		if media.Status == status {
+			isValidStatus = true
+			break
+		}
+	}
+	if !isValidStatus {
+		log.Printf("[CreateMedia] Invalid status: %s", media.Status)
+		handleError(c, fmt.Errorf("invalid status: %s", media.Status), http.StatusBadRequest)
+		return
+	}
+
+	// 创建媒体记录
+	if err := h.mediaService.Create(c, &media); err != nil {
+		log.Printf("[CreateMedia] Failed to create media: %+v", err)
 		handleError(c, fmt.Errorf("failed to create media: %v", err), http.StatusInternalServerError)
 		return
 	}
