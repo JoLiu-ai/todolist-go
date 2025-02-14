@@ -1,13 +1,25 @@
 import React, { useEffect, useState, MouseEvent } from 'react';
 import { Link } from 'react-router-dom';
 import { PersonalNote, personalNotesApi } from '@/api/notes';
-import { TrashIcon, PencilIcon, HomeIcon, DocumentTextIcon } from '@heroicons/react/24/outline';
+import { Task, taskApi } from '@/api/tasks';
+import { TrashIcon, PencilIcon, HomeIcon, DocumentTextIcon, LinkIcon } from '@heroicons/react/24/outline';
 import Layout from '@/components/Layout';
+import Modal from '@/components/Modal';
 
 export default function NotesPage() {
   const [notes, setNotes] = useState([] as PersonalNote[]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [selectedNote, setSelectedNote] = useState<PersonalNote | null>(null);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const [editForm, setEditForm] = useState({
+    title: '',
+    content: '',
+    category: '',
+    taskId: undefined as number | undefined,
+  });
 
   // 加载便利签数据
   useEffect(() => {
@@ -25,6 +37,20 @@ export default function NotesPage() {
     fetchNotes();
   }, []);
 
+  // 加载任务数据
+  useEffect(() => {
+    const fetchTasks = async () => {
+      try {
+        const response = await taskApi.getAll();
+        setTasks(response.tasks);
+      } catch (err) {
+        console.error('Failed to load tasks:', err);
+      }
+    };
+
+    fetchTasks();
+  }, []);
+
   // 删除便利签
   const handleDelete = async (id: string) => {
     if (!window.confirm('确定要删除这个便利签吗？')) {
@@ -36,6 +62,58 @@ export default function NotesPage() {
       setNotes(notes.filter((note: PersonalNote) => note.id !== id));
     } catch (err) {
       setError('Failed to delete note');
+    }
+  };
+
+  // 打开编辑模态框
+  const handleEdit = (note: PersonalNote) => {
+    setSelectedNote(note);
+    setEditForm({
+      title: note.title,
+      content: note.content,
+      category: note.category,
+      taskId: note.taskId,
+    });
+    setIsEditModalOpen(true);
+  };
+
+  // 保存编辑
+  const handleSaveEdit = async () => {
+    if (!selectedNote) return;
+
+    try {
+      await personalNotesApi.update(selectedNote.id, editForm);
+      setNotes(notes.map((note) =>
+        note.id === selectedNote.id
+          ? { ...note, ...editForm }
+          : note
+      ));
+      setIsEditModalOpen(false);
+    } catch (err) {
+      setError('Failed to update note');
+    }
+  };
+
+  // 关联任务
+  const handleLinkTask = (note: PersonalNote) => {
+    setSelectedNote(note);
+    setIsTaskModalOpen(true);
+  };
+
+  // 保存任务关联
+  const handleSaveTaskLink = async (taskId: number) => {
+    if (!selectedNote) return;
+
+    try {
+      await personalNotesApi.update(selectedNote.id, { taskId });
+      setNotes(notes.map((note) =>
+        note.id === selectedNote.id
+          ? { ...note, taskId }
+          : note
+      ));
+      setIsTaskModalOpen(false);
+    } catch (err) {
+      setError('Failed to link task');
     }
   };
 
@@ -110,20 +188,34 @@ export default function NotesPage() {
                       hour12: false
                     }).format(new Date(note.createdAt))}
                   </span>
-                  <span className={`px-2 py-1 rounded-full ${getCategoryColor(note.category)}`}>
-                    {note.category}
-                  </span>
+                  <div className="flex items-center space-x-2">
+                    {note.taskId && (
+                      <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded-full">
+                        已关联任务
+                      </span>
+                    )}
+                    <span className={`px-2 py-1 rounded-full ${getCategoryColor(note.category)}`}>
+                      {note.category}
+                    </span>
+                  </div>
                 </div>
               </Link>
 
               {/* 操作按钮 */}
               <div className="absolute top-4 right-4 flex space-x-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                <Link
-                  to={`/notes/${note.id}/edit`}
+                <button
+                  onClick={() => handleLinkTask(note)}
+                  className="p-1 text-gray-400 hover:text-blue-500 transition-colors"
+                  title="关联任务"
+                >
+                  <LinkIcon className="w-4 h-4" />
+                </button>
+                <button
+                  onClick={() => handleEdit(note)}
                   className="p-1 text-gray-400 hover:text-[#d4b483] transition-colors"
                 >
                   <PencilIcon className="w-4 h-4" />
-                </Link>
+                </button>
                 <button
                   onClick={(e: MouseEvent) => {
                     e.preventDefault();
@@ -149,6 +241,102 @@ export default function NotesPage() {
             </Link>
           </div>
         )}
+
+        {/* 编辑模态框 */}
+        <Modal
+          isOpen={isEditModalOpen}
+          onClose={() => setIsEditModalOpen(false)}
+          title="编辑便利签"
+        >
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700">标题</label>
+              <input
+                type="text"
+                value={editForm.title}
+                onChange={(e) => setEditForm({ ...editForm, title: e.target.value })}
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-[#d4b483] focus:ring-[#d4b483]"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700">内容</label>
+              <textarea
+                value={editForm.content}
+                onChange={(e) => setEditForm({ ...editForm, content: e.target.value })}
+                rows={4}
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-[#d4b483] focus:ring-[#d4b483]"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700">分类</label>
+              <select
+                value={editForm.category}
+                onChange={(e) => setEditForm({ ...editForm, category: e.target.value })}
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-[#d4b483] focus:ring-[#d4b483]"
+              >
+                <option value="brain">脑科学</option>
+                <option value="psychology">心理学</option>
+                <option value="cognitive">认知科学</option>
+                <option value="productivity">效率管理</option>
+                <option value="habits">习惯养成</option>
+                <option value="emotion">情绪管理</option>
+              </select>
+            </div>
+            <div className="flex justify-end space-x-3 pt-4">
+              <button
+                onClick={() => setIsEditModalOpen(false)}
+                className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50"
+              >
+                取消
+              </button>
+              <button
+                onClick={handleSaveEdit}
+                className="px-4 py-2 bg-[#d4b483] text-white rounded-md text-sm font-medium hover:bg-[#c9a978]"
+              >
+                保存
+              </button>
+            </div>
+          </div>
+        </Modal>
+
+        {/* 关联任务模态框 */}
+        <Modal
+          isOpen={isTaskModalOpen}
+          onClose={() => setIsTaskModalOpen(false)}
+          title="关联任务"
+        >
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700">选择任务</label>
+              <select
+                value={editForm.taskId}
+                onChange={(e) => setEditForm({ ...editForm, taskId: Number(e.target.value) })}
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-[#d4b483] focus:ring-[#d4b483]"
+              >
+                <option value="">不关联任务</option>
+                {tasks.map((task) => (
+                  <option key={task.id} value={task.id}>
+                    {task.title}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="flex justify-end space-x-3 pt-4">
+              <button
+                onClick={() => setIsTaskModalOpen(false)}
+                className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50"
+              >
+                取消
+              </button>
+              <button
+                onClick={() => handleSaveTaskLink(editForm.taskId!)}
+                className="px-4 py-2 bg-[#d4b483] text-white rounded-md text-sm font-medium hover:bg-[#c9a978]"
+              >
+                保存
+              </button>
+            </div>
+          </div>
+        </Modal>
       </div>
     </Layout>
   );

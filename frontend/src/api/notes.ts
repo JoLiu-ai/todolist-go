@@ -1,4 +1,5 @@
 import { api } from './client';
+import type { PersonalNote, CreateNoteRequest, UpdateNoteRequest, NotesResponse } from '@/types/note';
 
 export interface PersonalNote {
   id: string;
@@ -47,62 +48,56 @@ const mockNotes: PersonalNote[] = [
 ];
 
 export const personalNotesApi = {
-  // 获取所有便利签
-  getAll: async () => {
-    // return api.notes.getAll();
-    return Promise.resolve({
-      notes: mockNotes,
-      total: mockNotes.length,
+  getAll: async (): Promise<NotesResponse> => {
+    const response = await fetch('/api/notes');
+    if (!response.ok) {
+      throw new Error('Failed to fetch notes');
+    }
+    return response.json();
+  },
+
+  create: async (data: CreateNoteRequest): Promise<PersonalNote> => {
+    const response = await fetch('/api/notes', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(data),
     });
-  },
-
-  // 获取单个便利签
-  getById: async (id: string) => {
-    // return api.notes.getById(id);
-    const note = mockNotes.find(n => n.id === id);
-    if (!note) {
-      throw new Error('Note not found');
+    if (!response.ok) {
+      throw new Error('Failed to create note');
     }
-    return Promise.resolve(note);
+    return response.json();
   },
 
-  // 创建便利签
-  create: async (note: CreatePersonalNoteRequest) => {
-    // return api.notes.create(note);
-    const newNote: PersonalNote = {
-      id: String(mockNotes.length + 1),
-      ...note,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    };
-    mockNotes.push(newNote);
-    return Promise.resolve(newNote);
-  },
-
-  // 更新便利签
-  update: async (id: string, note: UpdatePersonalNoteRequest) => {
-    // return api.notes.update(id, note);
-    const index = mockNotes.findIndex(n => n.id === id);
-    if (index === -1) {
-      throw new Error('Note not found');
+  update: async (id: string, data: UpdateNoteRequest): Promise<PersonalNote> => {
+    const response = await fetch(`/api/notes/${id}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(data),
+    });
+    if (!response.ok) {
+      throw new Error('Failed to update note');
     }
-    const updatedNote = {
-      ...mockNotes[index],
-      ...note,
-      updatedAt: new Date().toISOString(),
-    };
-    mockNotes[index] = updatedNote;
-    return Promise.resolve(updatedNote);
+    return response.json();
   },
 
-  // 删除便利签
-  delete: async (id: string) => {
-    // return api.notes.delete(id);
-    const index = mockNotes.findIndex(n => n.id === id);
-    if (index === -1) {
-      throw new Error('Note not found');
+  delete: async (id: string): Promise<void> => {
+    const response = await fetch(`/api/notes/${id}`, {
+      method: 'DELETE',
+    });
+    if (!response.ok) {
+      throw new Error('Failed to delete note');
     }
-    mockNotes.splice(index, 1);
-    return Promise.resolve();
+  },
+
+  getById: async (id: string): Promise<PersonalNote> => {
+    const response = await fetch(`/api/notes/${id}`);
+    if (!response.ok) {
+      throw new Error('Failed to fetch note');
+    }
+    return response.json();
   },
 }; 

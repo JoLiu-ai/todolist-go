@@ -10,22 +10,38 @@ export interface Note {
   updatedAt: string;
 }
 
+export interface PersonalNote {
+  id: string;
+  title: string;
+  content: string;
+  category: string;
+  taskId?: number;
+  userId: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface CreateNoteRequest {
   title: string;
   content: string;
-  category: NoteCategory;
-  tags: string[];
+  category: string;
+  taskId?: number;
 }
 
 export interface UpdateNoteRequest {
   title?: string;
   content?: string;
-  category?: NoteCategory;
-  tags?: string[];
+  category?: string;
+  taskId?: number;
 }
 
 export interface NoteListResponse {
   notes: Note[];
+  total: number;
+}
+
+export interface NotesResponse {
+  notes: PersonalNote[];
   total: number;
 }
 
