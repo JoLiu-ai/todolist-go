@@ -8,6 +8,7 @@ import (
 	"os"
 	"runtime/debug"
 	"strconv"
+	"time"
 
 	"cute-todo/backend/internal/models"
 	"cute-todo/backend/internal/repository"
@@ -78,6 +79,10 @@ func (h *MediaHandler) CreateMedia(c *gin.Context) {
 	// 设置用户ID
 	media.UserID = userID.(int)
 
+	// 清除可能被客户端设置的时间字段，让 GORM 自动处理
+	media.CreatedAt = time.Time{}
+	media.UpdatedAt = time.Time{}
+
 	// 验证必填字段
 	if media.Type == "" {
 		log.Printf("[CreateMedia] Missing required field: type")
@@ -137,20 +142,77 @@ func (h *MediaHandler) CreateMedia(c *gin.Context) {
 // @Success 200 {object} models.Media
 // @Router /media/{id} [get]
 func (h *MediaHandler) GetMedia(c *gin.Context) {
+	log.Printf("[GetMedia] Request started - URL: %s", c.Request.URL.String())
+	log.Printf("[GetMedia] Query parameters: %v", c.Request.URL.Query())
+
 	id, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
+		log.Printf("[GetMedia] Invalid ID format: %v", err)
 		handleError(c, fmt.Errorf("invalid media ID: %v", err), http.StatusBadRequest)
 		return
 	}
 
 	userID := c.GetInt("userID")
+	mediaType := c.Query("type")
+
+	log.Printf("[GetMedia] Processing request - ID: %d, UserID: %d, MediaType: %s", id, userID, mediaType)
+
+	// 验证媒体类型
+	if mediaType != "" && mediaType != string(models.MediaTypeBook) && mediaType != string(models.MediaTypeMovie) {
+		log.Printf("[GetMedia] Invalid media type: %s", mediaType)
+		handleError(c, fmt.Errorf("invalid media type: %s", mediaType), http.StatusBadRequest)
+		return
+	}
+
+	// 获取媒体基本信息
 	media, err := h.mediaService.GetByID(c.Request.Context(), id, userID)
 	if err != nil {
+		log.Printf("[GetMedia] Failed to get media: %+v", err)
 		handleError(c, fmt.Errorf("failed to get media: %v", err), http.StatusInternalServerError)
 		return
 	}
 
-	c.JSON(http.StatusOK, media)
+	log.Printf("[GetMedia] Successfully retrieved media - ID: %d, Type: %s", media.ID, media.Type)
+
+	// 如果指定了类型，验证媒体类型是否匹配
+	if mediaType != "" && media.Type != mediaType {
+		log.Printf("[GetMedia] Media type mismatch - Expected: %s, Got: %s", mediaType, media.Type)
+		handleError(c, fmt.Errorf("media type mismatch: expected %s, got %s", mediaType, media.Type), http.StatusNotFound)
+		return
+	}
+
+	// 获取笔记
+	notes, err := h.mediaService.GetNotes(c.Request.Context(), id, 1, 10)
+	if err != nil {
+		log.Printf("[GetMedia] Failed to get notes: %v", err)
+		notes = []*models.Note{} // 修复：使用正确的类型 []*models.Note
+	} else {
+		log.Printf("[GetMedia] Successfully retrieved %d notes", len(notes))
+	}
+
+	// 获取详细信息
+	var details interface{}
+	if media.Type == "book" {
+		log.Printf("[GetMedia] Fetching book details for ID: %d", id)
+		details, err = h.mediaService.GetBookDetails(c.Request.Context(), id)
+	} else if media.Type == "movie" {
+		log.Printf("[GetMedia] Fetching movie details for ID: %d", id)
+		details, err = h.mediaService.GetMovieDetails(c.Request.Context(), id)
+	}
+	if err != nil {
+		log.Printf("[GetMedia] Failed to get details: %v", err)
+		details = map[string]interface{}{} // 使用空 map 而不是 nil
+	} else {
+		log.Printf("[GetMedia] Successfully retrieved details")
+	}
+
+	response := gin.H{
+		"media":   media,
+		"notes":   notes,
+		"details": details,
+	}
+	log.Printf("[GetMedia] Sending response for ID: %d", id)
+	c.JSON(http.StatusOK, response)
 }
 
 // ListMedia godoc
@@ -340,43 +402,67 @@ func (h *MediaHandler) GetHomeData(c *gin.Context) {
 // @Success 200 {object} models.Media
 // @Router /media/{id} [get]
 func (h *MediaHandler) GetMediaByID(c *gin.Context) {
+	log.Printf("[GetMediaByID] Request started - URL: %s", c.Request.URL.String())
+	log.Printf("[GetMediaByID] Query parameters: %v", c.Request.URL.Query())
+	log.Printf("[GetMediaByID] Headers: %v", c.Request.Header)
+
 	id, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid media ID"})
+		log.Printf("[GetMediaByID] Invalid ID format: %v", err)
+		handleError(c, fmt.Errorf("invalid media ID: %v", err), http.StatusBadRequest)
 		return
 	}
 
 	userID := c.GetInt("userID")
+	log.Printf("[GetMediaByID] Processing request - ID: %d, UserID: %d", id, userID)
+
 	media, err := h.mediaService.GetByID(c.Request.Context(), id, userID)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "Media not found"})
+		log.Printf("[GetMediaByID] Failed to get media: %+v", err)
+		handleError(c, fmt.Errorf("media not found: %v", err), http.StatusNotFound)
 		return
 	}
+	log.Printf("[GetMediaByID] Successfully retrieved media - ID: %d, Type: %s", media.ID, media.Type)
 
 	// 获取笔记
 	notes, err := h.mediaService.GetNotes(c.Request.Context(), id, 1, 10)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get notes"})
-		return
+		log.Printf("[GetMediaByID] Failed to get notes: %v", err)
+		notes = []*models.Note{} // 使用空数组而不是返回错误
+	} else {
+		log.Printf("[GetMediaByID] Successfully retrieved %d notes", len(notes))
 	}
 
 	// 获取详细信息
 	var details interface{}
 	if media.Type == "book" {
+		log.Printf("[GetMediaByID] Fetching book details for ID: %d", id)
 		details, err = h.mediaService.GetBookDetails(c.Request.Context(), id)
+		if err != nil {
+			log.Printf("[GetMediaByID] Failed to get book details: %v", err)
+			details = nil // 如果获取失败就不返回详情
+		}
 	} else if media.Type == "movie" {
+		log.Printf("[GetMediaByID] Fetching movie details for ID: %d", id)
 		details, err = h.mediaService.GetMovieDetails(c.Request.Context(), id)
-	}
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get details"})
-		return
+		if err != nil {
+			log.Printf("[GetMediaByID] Failed to get movie details: %v", err)
+			details = nil // 如果获取失败就不返回详情
+		}
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"media":   media,
-		"notes":   notes,
-		"details": details,
-	})
+	response := gin.H{
+		"media": media,
+		"notes": notes,
+	}
+
+	// 只有在成功获取到详情时才添加到响应中
+	if details != nil {
+		response["details"] = details
+	}
+
+	log.Printf("[GetMediaByID] Sending response for ID: %d", id)
+	c.JSON(http.StatusOK, response)
 }
 
 // AddNote godoc

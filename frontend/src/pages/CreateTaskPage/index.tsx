@@ -27,7 +27,7 @@ export const CreateTaskPage: FC = () => {
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
     // TODO: 实现创建任务的逻辑
-    console.log('创建任务:', form);
+    
     navigate('/tasks');
   };
 

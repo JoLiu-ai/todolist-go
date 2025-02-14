@@ -1,6 +1,6 @@
 import { FC, FormEvent, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Layout } from '@/components/layout/Layout';
+import { Layout } from '@/components/Layout/Layout';
 import { Button } from '@/components/common/Button';
 import { Input } from '@/components/common/Input';
 import { api } from '@/api/client';

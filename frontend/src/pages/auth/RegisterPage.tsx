@@ -1,9 +1,9 @@
 import { useState } from 'react';
-import { useAuth } from '../contexts/AuthContext';
+import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate, Link } from 'react-router-dom';
-import { Layout } from '@/components/layout/Layout';
-import { Button } from '@/components/common/Button';
-import { Input } from '@/components/common/Input';
+import Layout from '@/components/Layout';
+import { Button } from '@/components/common/Button';  
+import { Input } from '@/components/common/Input  ';
 import { api } from '@/api/client';
 
 export default function RegisterPage() {
@@ -30,11 +30,11 @@ export default function RegisterPage() {
       username: username || undefined  // 如果用户名为空字符串，则设为 undefined
     };
     
-    console.log('Sending registration request with data:', requestData);
+    
 
     try {
       const responseData = await api.auth.register(requestData);
-      console.log('Registration response:', responseData);
+      
 
       if (responseData.token && responseData.user) {
         login(responseData.token, responseData.user);

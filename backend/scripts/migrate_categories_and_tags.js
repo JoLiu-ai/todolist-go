@@ -20,7 +20,7 @@ async function readExportedData() {
 
 // 迁移分类
 async function migrateCategories(data) {
-  console.log('开始迁移分类...');
+  ('开始迁移分类...');
 
   // 收集所有分类
   const bookCategories = new Map();
@@ -64,12 +64,12 @@ async function migrateCategories(data) {
     );
   }
 
-  console.log('分类迁移完成！');
+  ('分类迁移完成！');
 }
 
 // 迁移标签
 async function migrateTags(data) {
-  console.log('开始迁移标签...');
+  ('开始迁移标签...');
 
   // 收集所有标签
   const tags = new Map();
@@ -130,17 +130,17 @@ async function migrateTags(data) {
     }
   }
 
-  console.log('标签迁移完成！');
+  ('标签迁移完成！');
 }
 
 // 主函数
 async function main() {
   try {
-    console.log('开始数据迁移...');
+    ('开始数据迁移...');
     const data = await readExportedData();
     await migrateCategories(data);
     await migrateTags(data);
-    console.log('数据迁移完成！');
+    ('数据迁移完成！');
   } catch (error) {
     console.error('迁移失败:', error);
   } finally {

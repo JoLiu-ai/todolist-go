@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useAuth } from '../contexts/AuthContext';
+import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { api } from '@/api/client';
 
@@ -14,14 +14,14 @@ export default function LoginPage() {
   const message = location.state?.message;
   const from = location.state?.from?.pathname || '/';
 
-  console.log('Current location:', location);
-  console.log('Redirect target:', from);
+  ;
+  ;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setIsLoading(true);
-    console.log('Attempting login with:', { username, password: '***' });
+    ;
 
     try {
       if (!username.trim()) {
@@ -33,14 +33,14 @@ export default function LoginPage() {
       }
 
       const data = await api.auth.login({ username: username.trim(), password });
-      console.log('Login response:', data);
+      ;
 
       if (data.token && data.user) {
-        console.log('Login successful, saving token and user data');
+        
         login(data.token, data.user);
-        console.log('Navigating to:', from);
+        
         navigate(from, { replace: true });
-        console.log('Navigation triggered');
+        
       } else {
         console.error('Invalid response format:', data);
         setError('登录失败，服务器返回数据格式不正确');

@@ -19,9 +19,9 @@ export default function useMediaList() {
 
       try {
         setError(null);
-        console.log('Fetching media list...');
+        ;
         const response = await mediaApi.getAll({});
-        console.log('Response:', response);
+        ;
         if (!response?.data) {
           throw new Error('Invalid response format');
         }

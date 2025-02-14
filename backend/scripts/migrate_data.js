@@ -14,7 +14,6 @@ const pool = new Pool({
 // 读取导出的数据
 function readExportedData() {
     const filePath = path.resolve(__dirname, '../../../app-1/data/cuteTodo_export.json');
-    console.log('Reading data from:', filePath);
     const content = fs.readFileSync(filePath, 'utf8');
     const data = JSON.parse(content);
     
@@ -30,7 +29,7 @@ function readExportedData() {
             }
         });
         data.books = Array.from(uniqueBooks.values());
-        console.log(`Found ${data.books.length} unique books`);
+        ;
     }
 
     if (data.movies) {
@@ -44,7 +43,7 @@ function readExportedData() {
             }
         });
         data.movies = Array.from(uniqueMovies.values());
-        console.log(`Found ${data.movies.length} unique movies`);
+        ;
     }
 
     return data;
@@ -207,10 +206,10 @@ async function migrateMovies() {
 
 async function main() {
     try {
-        console.log('开始迁移数据...');
+        ;
         await migrateBooks();
         await migrateMovies();
-        console.log('数据迁移完成！');
+        ;
     } catch (error) {
         console.error('迁移失败:', error);
     } finally {

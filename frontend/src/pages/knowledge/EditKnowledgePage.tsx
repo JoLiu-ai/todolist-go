@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { HomeIcon, AcademicCapIcon } from '@heroicons/react/24/outline';
-import Layout from '../components/Layout';
-import { api, KnowledgeData } from '../api/client';
+import Layout from '@/components/Layout';
+import { api, KnowledgeData } from '@/api/client';
 
 type EditKnowledgeFormData = Omit<KnowledgeData, 'id' | 'created_at' | 'updated_at'>;
 

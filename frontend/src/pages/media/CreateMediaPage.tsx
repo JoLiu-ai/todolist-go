@@ -1,69 +1,60 @@
-import React from 'react';
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { BookOpenIcon, FilmIcon, HomeIcon } from '@heroicons/react/24/outline';
-import Layout from '../components/Layout';
-import { api } from '../api/client';
-import { MediaType, MediaStatus } from '../types/media';
+import Layout from '@/components/Layout';
+import { api } from '@/api/client';
+import { MediaType, MediaStatus } from '@/types/media';
 import { withAuth } from '@/components/withAuth';
-import { useAuth } from '../contexts/AuthContext';
 
 interface CreateMediaPageProps {
   type: MediaType;
+}
+
+interface CreateMediaData {
+  type: MediaType;
+  title: string;
+  display_name: {
+    primary: string;
+    secondary?: string;
+  };
+  description: string;
+  creator?: string;
+  status: MediaStatus;
+  rating: number;
+  resource_link?: string;
 }
 
 function CreateMediaPage({ type }: CreateMediaPageProps) {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const { isAuthenticated, token, user } = useAuth();
 
-  console.log('[CreateMediaPage] Auth State:', {
-    isAuthenticated,
-    hasToken: !!token,
-    hasUser: !!user,
-    token,
-    user
-  });
-
-  const handleSubmit = async (e: SubmitEvent) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setLoading(true);
     setError('');
 
     try {
-      const formData = new FormData(e.currentTarget as HTMLFormElement);
+      const formData = new FormData(e.currentTarget);
       const title = formData.get('title') as string;
-      const data = {
+      const data: CreateMediaData = {
         type,
         title,
         display_name: {
           primary: title,
-          secondary: formData.get('originalTitle') as string || undefined,
         },
         description: formData.get('description') as string || '',
-        creator: formData.get('creator') as string || '',
-        status: (formData.get('status') as MediaStatus) || 'plan_to_read',
-        rating: parseFloat(formData.get('rating') as string) || 0,
-        resource_link: formData.get('resource_link') as string || '',
-        cover_image: formData.get('cover_image') as string || '',
-        tags: (formData.get('tags') as string || '').split(',').filter(Boolean),
-        progress: parseInt(formData.get('progress') as string) || 0,
+        creator: formData.get('creator') as string || undefined,
+        status: (formData.get('status') as string || 'plan_to_read') as MediaStatus,
+        rating: Number(formData.get('rating')) || 0,
+        resource_link: formData.get('resource_link') as string || undefined,
       };
 
-      console.log('Form data:', data);
       const response = await api.media.create(data);
-      console.log('Create response:', response);
       navigate(`/${type === 'book' ? 'books' : 'movies'}/${response.id}`);
     } catch (err) {
       console.error('创建失败:', err);
-      if (err instanceof Error) {
-        setError(err.message);
-      } else if (typeof err === 'object' && err !== null && 'data' in err) {
-        setError((err as any).data?.error || '创建失败，请稍后重试');
-      } else {
-        setError('创建失败，请稍后重试');
-      }
+      setError(err instanceof Error ? err.message : '创建失败，请稍后重试');
     } finally {
       setLoading(false);
     }
@@ -149,19 +140,6 @@ function CreateMediaPage({ type }: CreateMediaPageProps) {
                     </div>
 
                     <div className="group">
-                      <label htmlFor="originalTitle" className="block text-base font-medium text-[#6b563e] mb-2 group-hover:text-[#8b7355] transition-colors">
-                        原始标题
-                      </label>
-                      <input
-                        type="text"
-                        name="originalTitle"
-                        id="originalTitle"
-                        className="w-full px-4 py-3 rounded-lg bg-white border-2 border-[#e9dcc9] focus:ring-[#d4b483] focus:border-[#d4b483] hover:border-[#d4b483] transition duration-150 shadow-sm"
-                        placeholder="原始语言的标题（可选）"
-                      />
-                    </div>
-
-                    <div className="group">
                       <label htmlFor="creator" className="block text-base font-medium text-[#6b563e] mb-2 group-hover:text-[#8b7355] transition-colors">
                         {type === 'book' ? '作者' : '导演'}
                       </label>
@@ -171,19 +149,6 @@ function CreateMediaPage({ type }: CreateMediaPageProps) {
                         id="creator"
                         className="w-full px-4 py-3 rounded-lg bg-white border-2 border-[#e9dcc9] focus:ring-[#d4b483] focus:border-[#d4b483] hover:border-[#d4b483] transition duration-150 shadow-sm"
                         placeholder={type === 'book' ? '作者姓名' : '导演姓名'}
-                      />
-                    </div>
-
-                    <div className="group">
-                      <label htmlFor="cover_image" className="block text-base font-medium text-[#6b563e] mb-2 group-hover:text-[#8b7355] transition-colors">
-                        封面图片
-                      </label>
-                      <input
-                        type="url"
-                        name="cover_image"
-                        id="cover_image"
-                        className="w-full px-4 py-3 rounded-lg bg-white border-2 border-[#e9dcc9] focus:ring-[#d4b483] focus:border-[#d4b483] hover:border-[#d4b483] transition duration-150 shadow-sm"
-                        placeholder="封面图片链接"
                       />
                     </div>
                   </div>
@@ -196,7 +161,6 @@ function CreateMediaPage({ type }: CreateMediaPageProps) {
                       <select
                         name="status"
                         id="status"
-                        required
                         className="w-full px-4 py-3 rounded-lg bg-white border-2 border-[#e9dcc9] focus:ring-[#d4b483] focus:border-[#d4b483] hover:border-[#d4b483] transition duration-150 shadow-sm"
                       >
                         <option value="plan_to_read">想{type === 'book' ? '读' : '看'}</option>
@@ -236,50 +200,19 @@ function CreateMediaPage({ type }: CreateMediaPageProps) {
                     </div>
 
                     <div className="group">
-                      <label htmlFor="tags" className="block text-base font-medium text-[#6b563e] mb-2 group-hover:text-[#8b7355] transition-colors">
-                        标签
+                      <label htmlFor="resource_link" className="block text-base font-medium text-[#6b563e] mb-2 group-hover:text-[#8b7355] transition-colors">
+                        资源链接
                       </label>
                       <input
-                        type="text"
-                        name="tags"
-                        id="tags"
+                        type="url"
+                        name="resource_link"
+                        id="resource_link"
                         className="w-full px-4 py-3 rounded-lg bg-white border-2 border-[#e9dcc9] focus:ring-[#d4b483] focus:border-[#d4b483] hover:border-[#d4b483] transition duration-150 shadow-sm"
-                        placeholder="使用逗号分隔多个标签"
+                        placeholder={type === 'book' ? '豆瓣链接/在线阅读地址' : '豆瓣链接/在线观看地址'}
                       />
-                      <p className="mt-1 text-sm text-[#8b7355]">多个标签请用英文逗号分隔</p>
-                    </div>
-
-                    <div className="group">
-                      <label htmlFor="progress" className="block text-base font-medium text-[#6b563e] mb-2 group-hover:text-[#8b7355] transition-colors">
-                        进度
-                      </label>
-                      <input
-                        type="number"
-                        name="progress"
-                        id="progress"
-                        min="0"
-                        className="w-full px-4 py-3 rounded-lg bg-white border-2 border-[#e9dcc9] focus:ring-[#d4b483] focus:border-[#d4b483] hover:border-[#d4b483] transition duration-150 shadow-sm"
-                        placeholder={type === 'book' ? '已读页数' : '已看分钟数'}
-                      />
-                      <p className="mt-1 text-sm text-[#8b7355]">
-                        {type === 'book' ? '已读页数' : '已观看时长（分钟）'}
-                      </p>
+                      <p className="mt-1 text-sm text-[#8b7355]">可以填写豆瓣链接或其他在线{type === 'book' ? '阅读' : '观看'}地址</p>
                     </div>
                   </div>
-                </div>
-
-                <div className="group">
-                  <label htmlFor="resource_link" className="block text-base font-medium text-[#6b563e] mb-2 group-hover:text-[#8b7355] transition-colors">
-                    资源链接
-                  </label>
-                  <input
-                    type="url"
-                    name="resource_link"
-                    id="resource_link"
-                    className="w-full px-4 py-3 rounded-lg bg-white border-2 border-[#e9dcc9] focus:ring-[#d4b483] focus:border-[#d4b483] hover:border-[#d4b483] transition duration-150 shadow-sm"
-                    placeholder={type === 'book' ? '豆瓣链接/在线阅读地址' : '豆瓣链接/在线观看地址'}
-                  />
-                  <p className="mt-1 text-sm text-[#8b7355]">可以填写豆瓣链接或其他在线{type === 'book' ? '阅读' : '观看'}地址</p>
                 </div>
 
                 <div className="group">
@@ -331,4 +264,4 @@ function CreateMediaPage({ type }: CreateMediaPageProps) {
   );
 }
 
-export default withAuth(CreateMediaPage, '请先登录后再创建媒体'); 
+export default withAuth(CreateMediaPage, '请先登录后再添加内容'); 

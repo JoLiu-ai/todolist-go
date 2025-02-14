@@ -1,25 +1,34 @@
 import { createBrowserRouter } from 'react-router-dom';
 import HomePage from '@/pages/HomePage';
-import LoginPage from '@/pages/LoginPage';
-import RegisterPage from '@/pages/RegisterPage';
-import CreateTaskPage from '@/pages/CreateTaskPage';
-import EditTaskPage from '@/pages/EditTaskPage';
-import TaskListPage from '@/pages/TaskListPage';
-import TaskDetailPage from '@/pages/TaskDetailPage';
-import MediaPage from '@/pages/MediaPage';
-import CreateMediaPage from '@/pages/CreateMediaPage';
-import MediaDetailPage from '@/pages/MediaDetailPage';
-import KnowledgePage from '@/pages/KnowledgePage';
-import CreateKnowledgePage from '@/pages/CreateKnowledgePage';
-import KnowledgeDetailPage from '@/pages/KnowledgeDetailPage';
-import EditKnowledgePage from '@/pages/EditKnowledgePage';
+import LoginPage from '@/pages/auth/LoginPage';
+import RegisterPage from '@/pages/auth/RegisterPage';
+import CreateTaskPage from '@/pages/tasks/CreateTaskPage';
+import EditTaskPage from '@/pages/tasks/EditTaskPage';
+import TaskListPage from '@/pages/tasks/TaskListPage';
+import TaskDetailPage from '@/pages/tasks/TaskDetailPage';
+import MediaPage from '@/pages/media/MediaPage';
+import CreateMediaPage from '@/pages/media/CreateMediaPage';
+import MediaDetailPage from '@/pages/media/MediaDetailPage';
+import KnowledgePage from '@/pages/knowledge/KnowledgePage';
+import CreateKnowledgePage from '@/pages/knowledge/CreateKnowledgePage';
+import KnowledgeDetailPage from '@/pages/knowledge/KnowledgeDetailPage';
+import EditKnowledgePage from '@/pages/knowledge/EditKnowledgePage';
+import MonthlyPlanPage from '@/pages/plans/MonthlyPlanPage';
+import WeeklyPlanPage from '@/pages/plans/WeeklyPlanPage';
+import DailyPlanPage from '@/pages/plans/DailyPlanPage';
 import NotFoundPage from '@/pages/NotFoundPage';
 import ProtectedRoute from '@/components/ProtectedRoute';
+import React from 'react';
+import NotesPage from './pages/notes/NotesPage';
+
+const withProtection = (element: React.ReactNode) => (
+  <ProtectedRoute children={element} />
+);
 
 export const router = createBrowserRouter([
   {
     path: '/',
-    element: <ProtectedRoute><HomePage /></ProtectedRoute>,
+    element: withProtection(<HomePage />),
   },
   {
     path: '/login',
@@ -29,64 +38,81 @@ export const router = createBrowserRouter([
     path: '/register',
     element: <RegisterPage />,
   },
+  // Plan routes
+  {
+    path: '/plans/monthly',
+    element: withProtection(<MonthlyPlanPage />),
+  },
+  {
+    path: '/plans/weekly',
+    element: withProtection(<WeeklyPlanPage />),
+  },
+  {
+    path: '/plans/daily',
+    element: withProtection(<DailyPlanPage />),
+  },
   // Task routes
   {
     path: '/tasks',
-    element: <ProtectedRoute><TaskListPage /></ProtectedRoute>,
+    element: withProtection(<TaskListPage />),
   },
   {
     path: '/tasks/create',
-    element: <ProtectedRoute><CreateTaskPage /></ProtectedRoute>,
+    element: withProtection(<CreateTaskPage />),
   },
   {
     path: '/tasks/:id',
-    element: <ProtectedRoute><TaskDetailPage /></ProtectedRoute>,
+    element: withProtection(<TaskDetailPage />),
   },
   {
     path: '/tasks/:id/edit',
-    element: <ProtectedRoute><EditTaskPage /></ProtectedRoute>,
+    element: withProtection(<EditTaskPage />),
   },
   // Media routes
   {
     path: '/books',
-    element: <ProtectedRoute><MediaPage type="book" /></ProtectedRoute>,
+    element: withProtection(<MediaPage type="book" />),
   },
   {
     path: '/books/create',
-    element: <ProtectedRoute><CreateMediaPage type="book" /></ProtectedRoute>,
+    element: withProtection(<CreateMediaPage type="book" />),
   },
   {
     path: '/books/:id',
-    element: <ProtectedRoute><MediaDetailPage type="book" /></ProtectedRoute>,
+    element: withProtection(<MediaDetailPage type="book" />),
   },
   {
     path: '/movies',
-    element: <ProtectedRoute><MediaPage type="movie" /></ProtectedRoute>,
+    element: withProtection(<MediaPage type="movie" />),
   },
   {
     path: '/movies/create',
-    element: <ProtectedRoute><CreateMediaPage type="movie" /></ProtectedRoute>,
+    element: withProtection(<CreateMediaPage type="movie" />),
   },
   {
     path: '/movies/:id',
-    element: <ProtectedRoute><MediaDetailPage type="movie" /></ProtectedRoute>,
+    element: withProtection(<MediaDetailPage type="movie" />),
   },
   // Knowledge routes
   {
     path: '/knowledge',
-    element: <ProtectedRoute><KnowledgePage /></ProtectedRoute>,
+    element: withProtection(<KnowledgePage />),
   },
   {
     path: '/knowledge/create',
-    element: <ProtectedRoute><CreateKnowledgePage /></ProtectedRoute>,
+    element: withProtection(<CreateKnowledgePage />),
   },
   {
     path: '/knowledge/:id',
-    element: <ProtectedRoute><KnowledgeDetailPage /></ProtectedRoute>,
+    element: withProtection(<KnowledgeDetailPage />),
   },
   {
     path: '/knowledge/:id/edit',
-    element: <ProtectedRoute><EditKnowledgePage /></ProtectedRoute>,
+    element: withProtection(<EditKnowledgePage />),
+  },
+  {
+    path: '/notes',
+    element: withProtection(<NotesPage />),
   },
   // 404 route
   {

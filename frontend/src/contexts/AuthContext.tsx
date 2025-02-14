@@ -18,13 +18,13 @@ type AuthProviderProps = {
 export function AuthProvider({ children }: AuthProviderProps) {
   const [token, setToken] = React.useState<string | null>(() => {
     const savedToken = localStorage.getItem('token');
-    console.log('[AuthProvider] Initial token from localStorage:', savedToken);
+    
     return savedToken;
   });
 
   const [user, setUser] = React.useState<User | null>(() => {
     const savedUser = localStorage.getItem('user');
-    console.log('[AuthProvider] Initial user from localStorage:', savedUser);
+    
     if (savedUser) {
       try {
         return JSON.parse(savedUser);
@@ -37,13 +37,13 @@ export function AuthProvider({ children }: AuthProviderProps) {
   });
 
   React.useEffect(() => {
-    console.log('[AuthProvider] Token changed:', token);
+    ;
     const validateToken = async () => {
       if (token) {
         try {
-          console.log('[AuthProvider] Validating token...');
+          ;
           const userData = await api.auth.getProfile();
-          console.log('[AuthProvider] Profile response:', userData);
+          
           setUser(userData);
           localStorage.setItem('user', JSON.stringify(userData));
         } catch (error) {
@@ -51,7 +51,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
           logout();
         }
       } else {
-        console.log('[AuthProvider] No token to validate');
+        ;
       }
     };
 
@@ -59,13 +59,13 @@ export function AuthProvider({ children }: AuthProviderProps) {
   }, [token]);
 
   const login = (newToken: string, newUser: User) => {
-    console.log('[AuthProvider] Login called with token:', newToken);
-    console.log('[AuthProvider] Login called with user:', newUser);
+    ;
+    ;
     
     // 先保存到 localStorage
     localStorage.setItem('token', newToken);
     localStorage.setItem('user', JSON.stringify(newUser));
-    console.log('[AuthProvider] Token and user saved to localStorage');
+    ;
     
     // 再更新状态
     setToken(newToken);
@@ -73,12 +73,12 @@ export function AuthProvider({ children }: AuthProviderProps) {
   };
 
   const logout = React.useCallback(() => {
-    console.log('[AuthProvider] Logout called');
+    ;
     
     // 先清除 localStorage
     localStorage.removeItem('token');
     localStorage.removeItem('user');
-    console.log('[AuthProvider] Token and user removed from localStorage');
+    
     
     // 再更新状态
     setToken(null);

@@ -2,7 +2,6 @@ package main
 
 import (
 	"flag"
-	"fmt"
 	"log"
 	"os"
 
@@ -45,12 +44,12 @@ func main() {
 		if err := m.Up(); err != nil && err != migrate.ErrNoChange {
 			log.Fatal(err)
 		}
-		fmt.Println("Successfully migrated up!")
+
 	case "down":
 		if err := m.Down(); err != nil && err != migrate.ErrNoChange {
 			log.Fatal(err)
 		}
-		fmt.Println("Successfully migrated down!")
+
 	default:
 		log.Fatalf("Invalid direction: %s", direction)
 	}

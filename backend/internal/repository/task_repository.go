@@ -29,7 +29,7 @@ func (r *TaskRepository) Create(ctx context.Context, task *models.Task) error {
 	}
 
 	fmt.Printf("Task created in database: %+v\n", task)
-	fmt.Println("=== TaskRepository.Create End ===\n")
+
 	return nil
 }
 

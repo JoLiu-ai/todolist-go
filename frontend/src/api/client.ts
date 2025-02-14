@@ -2,13 +2,15 @@ import axios, { AxiosHeaders } from 'axios';
 import { 
   Media, 
   MediaType, 
-  Category, 
   Note, 
+  MediaListResponse, 
+  MediaStats 
+} from '../types/media';
+import { 
+  Category, 
   Knowledge, 
   KnowledgeListResponse, 
   CreateKnowledgeData, 
-  MediaListResponse, 
-  MediaStats, 
   NotesResponse 
 } from '../types/types';
 import { Task, TaskStats, CreateTaskData } from './tasks';
@@ -45,10 +47,10 @@ async function request<T>(endpoint: string, config: RequestConfig = {}): Promise
   };
 
   // 打印认证信息
-  console.log('[API Request] Auth Token:', token);
+  ;
 
-  console.log(`[API Request] ${config.method || 'GET'} ${endpoint}`);
-  console.log('[API Request] Headers:', headers);
+  ;
+  ;
 
   const url = new URL(endpoint, window.location.origin);
   if (params) {
@@ -59,7 +61,7 @@ async function request<T>(endpoint: string, config: RequestConfig = {}): Promise
     });
   }
 
-  console.log('[API Request] URL:', url.toString());
+  ;
 
   const response = await fetch(url.pathname + url.search, {
     ...customConfig,
@@ -67,15 +69,15 @@ async function request<T>(endpoint: string, config: RequestConfig = {}): Promise
     credentials: 'include',
   });
 
-  console.log(`[API Response] Status: ${response.status}`);
-  console.log('[API Response] Headers:', Object.fromEntries(response.headers.entries()));
+  ;
+  ;
 
   const data = await response.json().catch(() => {
     console.error('[API Response] Failed to parse JSON response');
     return {};
   });
 
-  console.log('[API Response] Data:', data);
+  ;
 
   if (!response.ok) {
     console.error('[API Error]', {
@@ -141,6 +143,16 @@ function createApiClient(version: ApiVersion = 'v1') {
       });
     },
 
+    patch: <T>(endpoint: string, data: any, config: RequestConfig = {}) => {
+      const token = localStorage.getItem('token') || undefined;
+      return request<T>(endpoint, {
+        ...config,
+        method: 'PATCH',
+        body: JSON.stringify(data),
+        token,
+      });
+    },
+
     delete: <T>(endpoint: string, config: RequestConfig = {}) => {
       const token = localStorage.getItem('token') || undefined;
       return request<T>(endpoint, {
@@ -197,13 +209,24 @@ export const api = {
   },
   media: {
     getAll: (params: GetMediaParams) => dynamicClient.get<MediaListResponse>(endpoints.media.base, { params }),
-    getById: (id: number) => dynamicClient.get<Media>(endpoints.media.detail(id)),
+    getById: async (id: number, config?: RequestConfig) => {
+      ;
+      const response = await dynamicClient.get<Media>(endpoints.media.detail(id), config);
+      ;
+      return response;
+    },
+    getNotes: async (id: number, params?: { page?: number; pageSize?: number }) => {
+      ;
+      const response = await dynamicClient.get<NotesResponse>(endpoints.media.notes(id), { params });
+      ;
+      return response;
+    },
     create: (data: CreateMediaData) => {
       // 检查必要字段
       if (!data.type) {
         throw new Error('媒体类型(type)是必需的，请选择 book 或 movie');
       }
-      const title = data.title?.trim() || data.display_name?.primary?.trim();
+      const title = data.title?.trim();
       if (!title) {
         throw new Error('标题是必需的');
       }
@@ -220,16 +243,8 @@ export const api = {
       // 转换数据格式以匹配后端期望的结构
       const payload = {
         type: data.type,
-        title: title,  // 使用已验证的title
-        desc_text: data.description || '',  // 数据库字段
-        display_name: {
-          primary: title,  // 使用已验证的title
-          secondary: data.display_name?.secondary?.trim() || ''
-        },
-        description: {
-          primary: data.description || '',
-          secondary: ''
-        },
+        title: title,
+        description: data.description || '',
         creator: data.creator || '',
         status: data.status,
         rating: data.rating || 0,
@@ -239,8 +254,7 @@ export const api = {
         progress: data.progress || 0
       };
       
-      // 打印完整的请求信息
-      console.log('[Media Create] Request:', {
+      console.log('[api.media.create] Request:', {
         url: endpoints.media.base,
         method: 'POST',
         headers: {
@@ -252,18 +266,28 @@ export const api = {
 
       return dynamicClient.post<Media>(endpoints.media.base, payload);
     },
-    update: (id: number, data: Partial<Media>) => dynamicClient.put<Media>(endpoints.media.detail(id), data),
+    update: async (id: number, data: Partial<Media>) => {
+      ;
+      const response = await dynamicClient.put<Media>(endpoints.media.detail(id), data);
+      ;
+      return response;
+    },
     delete: (id: number) => dynamicClient.delete<void>(endpoints.media.detail(id)),
     getStats: () => dynamicClient.get<MediaStats>(`${endpoints.media.base}/stats`),
     getCategories: (params: { type: string }) => dynamicClient.get<Category[]>(`${endpoints.media.base}/categories`, { params }),
-    getNotes: (mediaId: number, params: { page: number; pageSize: number }) => 
-      dynamicClient.get<NotesResponse>(`${endpoints.media.notes(mediaId)}`, { params }),
-    addNote: (mediaId: number, content: string) =>
-      dynamicClient.post<Media>(endpoints.media.notes(mediaId), { content }),
-    updateNote: (mediaId: number, noteId: number, content: string) =>
-      dynamicClient.put<Media>(`${endpoints.media.notes(mediaId)}/${noteId}`, { content }),
-    deleteNote: (mediaId: number, noteId: number) =>
-      dynamicClient.delete<void>(`${endpoints.media.notes(mediaId)}/${noteId}`),
+    addNote: async (mediaId: number, content: string) => {
+      ;
+      const response = await dynamicClient.post<Media>(endpoints.media.notes(mediaId), { content });
+      ;
+      return response;
+    },
+    updateNote: async (mediaId: number, noteId: number, content: string) => {
+      ;
+      const response = await dynamicClient.put<Media>(`${endpoints.media.notes(mediaId)}/${noteId}`, { content });
+      ;
+      return response;
+    },
+    deleteNote: (mediaId: number, noteId: number) => dynamicClient.delete<void>(`${endpoints.media.notes(mediaId)}/${noteId}`),
   },
   knowledge: {
     getAll: (params?: { category?: string }) => dynamicClient.get<KnowledgeListResponse>(endpoints.knowledge.base, { params }),

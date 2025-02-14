@@ -10,19 +10,16 @@ const pool = new Pool({
 
 async function checkData() {
     try {
-        console.log('\n=== 检查媒体分类 ===');
         const categories = await pool.query(
             'SELECT type, COUNT(*) as count FROM media_categories GROUP BY type'
         );
         console.table(categories.rows);
 
-        console.log('\n=== 检查媒体数量 ===');
         const media = await pool.query(
             'SELECT type, status, COUNT(*) as count FROM media GROUP BY type, status'
         );
         console.table(media.rows);
 
-        console.log('\n=== 检查书籍详情（前5条） ===');
         const books = await pool.query(
             `SELECT m.title, m.status, m.rating, bd.isbn, bd.pages, bd.current_page 
              FROM media m 
@@ -32,7 +29,6 @@ async function checkData() {
         );
         console.table(books.rows);
 
-        console.log('\n=== 检查电影详情（前5条） ===');
         const movies = await pool.query(
             `SELECT m.title, m.status, m.rating, md.duration, md.country, md.language 
              FROM media m 
@@ -42,7 +38,6 @@ async function checkData() {
         );
         console.table(movies.rows);
 
-        console.log('\n=== 检查笔记数量 ===');
         const notes = await pool.query(
             `SELECT m.type, COUNT(mn.id) as notes_count 
              FROM media m 

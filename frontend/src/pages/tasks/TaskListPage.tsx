@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { HomeIcon, ClipboardDocumentListIcon, PlusIcon } from '@heroicons/react/24/outline';
-import Layout from '../components/Layout';
-import { taskApi, Task } from '../api/tasks';
+import Layout from '@/components/Layout';
+import { taskApi, Task } from '@/api/tasks';
 
 const PRIORITY_LABELS = {
   1: { text: '低', className: 'bg-blue-50 text-blue-600 border border-blue-200' },

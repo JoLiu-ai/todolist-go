@@ -56,7 +56,7 @@ func AuthMiddleware() gin.HandlerFunc {
 		}
 
 		if !token.Valid {
-			fmt.Println("Token is invalid")
+
 			c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid token"})
 			c.Abort()
 			return
@@ -69,7 +69,7 @@ func AuthMiddleware() gin.HandlerFunc {
 			userID := int(userIDFloat)
 			fmt.Printf("User ID from token: %d\n", userID)
 			if userID == 0 {
-				fmt.Println("User ID is 0")
+
 				c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid token: user_id cannot be 0"})
 				c.Abort()
 				return

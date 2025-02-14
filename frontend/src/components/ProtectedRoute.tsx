@@ -1,4 +1,5 @@
-import { Navigate, useLocation } from 'react-router-dom';
+import React from 'react';
+import { Navigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 
 interface ProtectedRouteProps {
@@ -6,17 +7,11 @@ interface ProtectedRouteProps {
 }
 
 export default function ProtectedRoute({ children }: ProtectedRouteProps) {
-  const { token } = useAuth();
-  const location = useLocation();
+  const { user } = useAuth();
 
-  console.log('ProtectedRoute - Current token:', token);
-  console.log('ProtectedRoute - Current location:', location);
-
-  if (!token) {
-    console.log('ProtectedRoute - No token, redirecting to login');
-    return <Navigate to="/login" state={{ from: location }} replace />;
+  if (!user) {
+    return <Navigate to="/login" />;
   }
 
-  console.log('ProtectedRoute - Token exists, rendering children');
   return <>{children}</>;
 } 

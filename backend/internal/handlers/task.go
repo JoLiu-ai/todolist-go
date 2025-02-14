@@ -29,7 +29,6 @@ func NewTaskHandler(taskService *services.TaskService) *TaskHandler {
 // @Success 201 {object} models.Task
 // @Router /tasks [post]
 func (h *TaskHandler) CreateTask(c *gin.Context) {
-	fmt.Println("\n=== CreateTask Start ===")
 
 	var task models.Task
 	if err := c.ShouldBindJSON(&task); err != nil {
@@ -51,7 +50,6 @@ func (h *TaskHandler) CreateTask(c *gin.Context) {
 	}
 
 	fmt.Printf("Task created successfully: %+v\n", task)
-	fmt.Println("=== CreateTask End ===\n")
 
 	c.JSON(http.StatusCreated, task)
 }

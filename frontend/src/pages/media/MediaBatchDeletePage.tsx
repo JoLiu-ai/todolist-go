@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { fetchMediaList, deleteMedia } from '../api/media';
-import Layout from '../components/Layout';
+import { fetchMediaList, deleteMedia } from '@/api/media';
+import Layout from '@/components/Layout';
 import { TrashIcon } from '@heroicons/react/24/outline';
 
 export default function MediaBatchDeletePage() {

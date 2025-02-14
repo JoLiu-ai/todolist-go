@@ -2,11 +2,11 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { Navigate, Link } from 'react-router-dom';
 import { HomeIcon, BookOpenIcon, FilmIcon, ClipboardDocumentListIcon } from '@heroicons/react/24/outline';
-import Layout from '../components/Layout';
-import { taskApi, Task, TaskStats } from '../api/tasks';
-import { api, dynamicClient } from '../api/client';
-import { Media, Book, Movie, MediaType } from '../types/media';
-import { MediaStats } from '../types/types';
+import Layout from '@/components/Layout';
+import { taskApi, Task, TaskStats } from '@/api/tasks';
+import { api, dynamicClient } from '@/api/client';
+import { Media, Book, Movie, MediaType } from '@/types/media';
+import { MediaStats } from '@/types/types';
 
 export default function HomePage() {
   const { user } = useAuth();

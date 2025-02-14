@@ -1,9 +1,10 @@
+import React from 'react';
 import { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { HomeIcon, ClipboardDocumentListIcon, PencilIcon } from '@heroicons/react/24/outline';
-import Layout from '../components/Layout';
-import { taskApi, Task } from '../api/tasks';
-import { useAuth } from '../contexts/AuthContext';
+import Layout from '@/components/Layout';
+import { taskApi, Task } from '@/api/tasks';
+import { useAuth } from '@/contexts/AuthContext';
 
 export default function TaskDetailPage() {
   const { id } = useParams();

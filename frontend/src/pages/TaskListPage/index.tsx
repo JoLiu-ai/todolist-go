@@ -1,7 +1,7 @@
 import type { FC } from 'react';
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Layout } from '@/components/layout/Layout';
+import { Layout } from '@/components/Layout/Layout';
 import { Button } from '@/components/common/Button';
 import { Input } from '@/components/common/Input';
 import './styles.css';
