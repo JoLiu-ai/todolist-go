@@ -1,6 +1,5 @@
-import React from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { Media, MediaType } from '../types/media';
+import { MediaType } from '../types/media';
 import MediaCard from '../components/MediaCard';
 import { useQuery } from '@tanstack/react-query';
 import { fetchMediaDetail } from '../api/media';
@@ -22,10 +21,6 @@ export default function MediaDetailPage() {
           <div className="animate-pulse">
             <div className="h-96 bg-gray-200 rounded-lg" />
           </div>
-        </div>
-      </Layout>
-    );
-  }
         </div>
       </Layout>
     );

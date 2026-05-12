@@ -13,7 +13,7 @@ define DATABASE_URL
 postgres://$(DB_USER):$(DB_PASSWORD)@$(DB_HOST):5432/$(DB_NAME)?sslmode=$(DB_SSL_MODE)
 endef
 
-.PHONY: up down build rebuild logs clean help export-env setup up-build ps restart-frontend restart-backend docker-build docker-up docker-down migrate-up migrate-down lint fmt tidy docker-dev
+.PHONY: up down build rebuild logs clean help export-env setup up-build ps restart-frontend restart-backend docker-build docker-up docker-down migrate-up migrate-down lint fmt tidy docker-dev local-start local-migrate local-seed local-backend local-frontend
 
 # Default target
 .DEFAULT_GOAL := help
@@ -88,7 +88,22 @@ dev-frontend: ## Start frontend development server
 	cd frontend && npm run dev
 
 dev-backend: ## Start backend development server
-	cd backend && go run cmd/server/main.go
+	cd backend && go run cmd/main.go
+
+local-start: ## Start frontend and backend locally without Docker
+	./start.sh
+
+local-migrate: ## Run database migrations against local PostgreSQL
+	cd backend && set -a && . ./.env && set +a && DATABASE_URL="postgres://$$DB_USER:$$DB_PASSWORD@$$DB_HOST:$$DB_PORT/$$DB_NAME?sslmode=$${DB_SSLMODE:-disable}" go run cmd/migrate/main.go -direction up
+
+local-seed: ## Seed local PostgreSQL with the test account
+	cd backend && set -a && . ./.env && set +a && PGPASSWORD="$$DB_PASSWORD" psql -v ON_ERROR_STOP=1 -h "$$DB_HOST" -p "$$DB_PORT" -U "$$DB_USER" -d "$${LOCAL_DB_NAME:-$$DB_NAME}" -f scripts/seed_test_user.sql
+
+local-backend: ## Start backend locally without Docker
+	cd backend && go run cmd/main.go
+
+local-frontend: ## Start frontend locally without Docker
+	cd frontend && npm run dev
 
 install-frontend: ## Install frontend dependencies
 	cd frontend && npm install
