@@ -13,7 +13,7 @@ export default function KnowledgePage() {
     const fetchKnowledge = async () => {
       try {
         const data = await api.knowledge.getAll();
-        setItems(data || []);
+        setItems(data.items || []);
       } catch (err) {
         console.error('获取知识列表失败:', err);
         setError(err instanceof Error ? err.message : '获取知识列表失败，请稍后重试');
@@ -123,8 +123,8 @@ export default function KnowledgePage() {
                       <h3 className="text-lg font-medium text-gray-900 group-hover:text-[#d4b483] transition-colors line-clamp-2">
                         {item.title}
                       </h3>
-                      <span className={`ml-2 px-2.5 py-0.5 text-xs font-medium rounded-full whitespace-nowrap ${getCategoryColor(item.category)}`}>
-                        {getCategoryLabel(item.category)}
+                      <span className={`ml-2 px-2.5 py-0.5 text-xs font-medium rounded-full whitespace-nowrap ${getCategoryColor(item.category ?? "")}`}>
+                        {getCategoryLabel(item.category ?? "")}
                       </span>
                     </div>
                     

@@ -190,7 +190,7 @@ interface CreateMediaData extends Partial<Media> {
 
 export const api = {
   auth: {
-    register: (data: { username: string; email: string; password: string }) =>
+    register: (data: { username?: string; email: string; password: string }) =>
       dynamicClient.post<{ token: string; user: User }>(endpoints.auth.register, data),
     login: (data: { username: string; password: string }) =>
       dynamicClient.post<{ token: string; user: User }>(endpoints.auth.login, data),

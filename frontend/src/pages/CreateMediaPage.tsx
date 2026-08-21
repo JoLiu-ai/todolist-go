@@ -26,7 +26,7 @@ function CreateMediaPage({ type }: CreateMediaPageProps) {
     user
   });
 
-  const handleSubmit = async (e: SubmitEvent) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setLoading(true);
     setError('');

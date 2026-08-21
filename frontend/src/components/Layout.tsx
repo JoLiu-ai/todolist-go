@@ -171,7 +171,7 @@ export default function Layout({ children }: LayoutProps) {
             <div className="flex items-center space-x-3">
               <div className="w-8 h-8 bg-[#d4b483] rounded-full flex items-center justify-center">
                 <span className="text-sm font-medium text-white">
-                  {user?.username.charAt(0).toUpperCase()}
+                  {user?.username?.charAt(0).toUpperCase()}
                 </span>
               </div>
               <div className="flex-1">

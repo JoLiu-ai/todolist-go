@@ -49,7 +49,7 @@ export const router = createBrowserRouter([
   // Media routes
   {
     path: '/books',
-    element: <ProtectedRoute><MediaPage type="book" /></ProtectedRoute>,
+    element: <ProtectedRoute><MediaPage /></ProtectedRoute>,
   },
   {
     path: '/books/create',
@@ -57,11 +57,11 @@ export const router = createBrowserRouter([
   },
   {
     path: '/books/:id',
-    element: <ProtectedRoute><MediaDetailPage type="book" /></ProtectedRoute>,
+    element: <ProtectedRoute><MediaDetailPage /></ProtectedRoute>,
   },
   {
     path: '/movies',
-    element: <ProtectedRoute><MediaPage type="movie" /></ProtectedRoute>,
+    element: <ProtectedRoute><MediaPage /></ProtectedRoute>,
   },
   {
     path: '/movies/create',
@@ -69,7 +69,7 @@ export const router = createBrowserRouter([
   },
   {
     path: '/movies/:id',
-    element: <ProtectedRoute><MediaDetailPage type="movie" /></ProtectedRoute>,
+    element: <ProtectedRoute><MediaDetailPage /></ProtectedRoute>,
   },
   // Knowledge routes
   {
