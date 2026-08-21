@@ -1,25 +1,8 @@
-export type MediaType = 'book' | 'movie';
-export type MediaStatus = 'in_progress' | 'completed' | 'plan_to_read' | 'dropped';
-
-export interface Media {
-  id: number;
-  type: MediaType;
-  display_name: {
-    primary: string;
-    secondary?: string;
-  };
-  description?: string;
-  creator?: string;
-  status: MediaStatus;
-  rating: number;
-  resource_link?: string;
-  created_at: string;
-  updated_at: string;
-  notes?: Note[];
-  progress?: number;
-  cover_image?: string;
-  tags?: string[];
-}
+// Media/MediaType/MediaStatus 以 types/media.ts 为唯一定义来源，
+// 这里导入供本文件内部引用，并再导出以兼容旧的 '@/types/types' 引用路径，
+// 避免出现两份不一致的 Media。
+import type { Media, MediaType, MediaStatus } from './media';
+export type { Media, MediaType, MediaStatus };
 
 export interface Category {
   id: number;
