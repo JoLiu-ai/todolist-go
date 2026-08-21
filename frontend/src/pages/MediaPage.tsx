@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { useParams, useNavigate, useLocation, Link } from 'react-router-dom';
+import { useState } from 'react';
+import { useLocation, Link } from 'react-router-dom';
 import { Media, MediaType } from '../types/media';
 import MediaCard from '../components/MediaCard';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -10,7 +10,6 @@ import Layout from '../components/Layout';
 export default function MediaPage() {
   const location = useLocation();
   const mediaType = location.pathname.startsWith('/movies') ? 'movie' : 'book';
-  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [isDeleting, setIsDeleting] = useState(false);
 

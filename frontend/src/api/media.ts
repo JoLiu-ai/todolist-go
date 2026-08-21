@@ -11,7 +11,7 @@ export async function fetchMediaList({ type, status, limit }: MediaListParams): 
   return api.media.getAll({ type, status, limit });
 }
 
-export async function fetchMediaDetail(type: MediaType, id: number): Promise<Media> {
+export async function fetchMediaDetail(_type: MediaType, id: number): Promise<Media> {
   return api.media.getById(id);
 }
 

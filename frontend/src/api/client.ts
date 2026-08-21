@@ -1,9 +1,7 @@
-import axios, { AxiosHeaders } from 'axios';
 import { 
   Media, 
   MediaType, 
   Category, 
-  Note, 
   Knowledge, 
   KnowledgeListResponse, 
   CreateKnowledgeData, 
@@ -120,7 +118,7 @@ async function request<T>(endpoint: string, config: RequestConfig = {}): Promise
 const endpoints = API_ENDPOINTS;
 
 // 创建可复用的客户端生成器
-function createApiClient(version: ApiVersion = 'v1') {
+function createApiClient(_version: ApiVersion = 'v1') {
   return {
     get: <T>(endpoint: string, config: RequestConfig = {}) => {
       const token = localStorage.getItem('token') || undefined;

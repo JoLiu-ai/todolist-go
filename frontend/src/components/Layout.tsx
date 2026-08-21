@@ -5,7 +5,6 @@ import {
   BookOpenIcon, 
   FilmIcon, 
   ClipboardDocumentListIcon,
-  PlusIcon,
   ChevronDownIcon,
   ChevronUpIcon,
   AcademicCapIcon,

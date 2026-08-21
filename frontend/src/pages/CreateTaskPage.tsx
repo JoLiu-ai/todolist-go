@@ -5,14 +5,6 @@ import Layout from '../components/Layout';
 import { taskApi } from '@/api/tasks';
 import { withAuth } from '@/components/withAuth';
 
-interface TaskFormData {
-  title: string;
-  description: string;
-  priority: number;
-  category: string;
-  due_date: string;
-}
-
 const TASK_CATEGORIES = [
   { id: 'work', name: '工作' },
   { id: 'study', name: '学习' },

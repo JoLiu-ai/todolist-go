@@ -1,11 +1,11 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { Navigate, Link } from 'react-router-dom';
-import { HomeIcon, BookOpenIcon, FilmIcon, ClipboardDocumentListIcon } from '@heroicons/react/24/outline';
+import { BookOpenIcon, FilmIcon, ClipboardDocumentListIcon } from '@heroicons/react/24/outline';
 import Layout from '../components/Layout';
 import { taskApi, Task, TaskStats } from '../api/tasks';
-import { api, dynamicClient } from '../api/client';
-import { Media, Book, Movie, MediaType } from '../types/media';
+import { api } from '../api/client';
+import { Media } from '../types/media';
 import { MediaStats } from '../types/types';
 
 export default function HomePage() {
@@ -25,7 +25,7 @@ export default function HomePage() {
   } as MediaStats);
   const [recentMedia, setRecentMedia] = useState([] as Media[]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
+  const [error] = useState("");
   
   useEffect(() => {
     if (user) {

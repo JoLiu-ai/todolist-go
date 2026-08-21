@@ -1,9 +1,6 @@
 import { useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigate, Link } from 'react-router-dom';
-import { Layout } from '@/components/layout/Layout';
-import { Button } from '@/components/common/Button';
-import { Input } from '@/components/common/Input';
 import { api } from '@/api/client';
 
 export default function RegisterPage() {
