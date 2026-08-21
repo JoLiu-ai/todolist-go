@@ -12,7 +12,7 @@ interface AuthContextType {
 const AuthContext = React.createContext<AuthContextType | null>(null);
 
 type AuthProviderProps = {
-  children: JSX.Element | JSX.Element[] | string | null;
+  children: React.ReactNode;
 };
 
 export function AuthProvider({ children }: AuthProviderProps) {

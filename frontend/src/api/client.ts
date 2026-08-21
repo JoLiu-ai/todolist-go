@@ -14,6 +14,16 @@ import {
 import { Task, TaskStats, CreateTaskData } from './tasks';
 import { API_ENDPOINTS } from './config';
 
+// 已登录用户信息，与后端 /auth 接口返回的 user 字段对应。
+export interface User {
+  id: number;
+  email: string;
+  username?: string | null;
+}
+
+// 知识条目对外别名，供页面按语义引用。
+export type KnowledgeData = Knowledge;
+
 // 版本化配置
 const API_VERSIONS = {
   v1: '/api/v1',
@@ -181,10 +191,10 @@ interface CreateMediaData extends Partial<Media> {
 export const api = {
   auth: {
     register: (data: { username: string; email: string; password: string }) =>
-      dynamicClient.post<{ token: string; user: any }>(endpoints.auth.register, data),
+      dynamicClient.post<{ token: string; user: User }>(endpoints.auth.register, data),
     login: (data: { username: string; password: string }) =>
-      dynamicClient.post<{ token: string; user: any }>(endpoints.auth.login, data),
-    getProfile: () => dynamicClient.get<any>(endpoints.auth.profile),
+      dynamicClient.post<{ token: string; user: User }>(endpoints.auth.login, data),
+    getProfile: () => dynamicClient.get<User>(endpoints.auth.profile),
   },
   tasks: {
     getAll: () => dynamicClient.get<Task[]>(endpoints.tasks.base),

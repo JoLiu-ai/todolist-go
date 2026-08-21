@@ -45,7 +45,10 @@ export interface Knowledge {
   id: number;
   title: string;
   content: string;
+  type?: string;
   category?: string;
+  tags?: string[];
+  user_id?: number;
   created_at: string;
   updated_at: string;
 }
