@@ -2,186 +2,160 @@
 
 ## 概述
 
-项目使用 PostgreSQL 15 作为数据库。主要包含以下表：
-- `media`：媒体信息表
-- `media_notes`：笔记表
-- `media_categories`：分类表
-- `book_details`：书籍详情表
-- `movie_details`：影视详情表
+项目使用 PostgreSQL。表结构以 `backend/migrations/` 中的 SQL 迁移为权威来源，
+Go 侧对应的实体定义在 `backend/internal/models/`（每个实体通过 `TableName()` 与下表严格对应）。
+
+| 表 | 说明 |
+|----|------|
+| `users` | 用户 |
+| `tasks` | 待办任务 |
+| `media` | 媒体（书籍/电影共用，`type` 区分） |
+| `book_details` | 书籍扩展信息 |
+| `movie_details` | 电影扩展信息 |
+| `notes` | 挂在媒体下的笔记 |
+| `knowledge` | 知识条目 |
 
 ## 表结构
 
-### media 表
+### users
 
-存储所有媒体的基本信息。
+```sql
+CREATE TABLE users (
+    id SERIAL PRIMARY KEY,
+    username VARCHAR(255) UNIQUE,
+    email VARCHAR(255) NOT NULL UNIQUE,
+    password VARCHAR(255) NOT NULL,
+    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+);
+```
+
+### tasks
+
+```sql
+CREATE TABLE tasks (
+    id SERIAL PRIMARY KEY,
+    title VARCHAR(255) NOT NULL,
+    description TEXT,
+    status VARCHAR(50) DEFAULT 'pending',
+    priority INTEGER DEFAULT 1,
+    category VARCHAR(50) DEFAULT 'other',
+    due_date TIMESTAMPTZ,
+    user_id INTEGER NOT NULL REFERENCES users(id),
+    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+);
+```
+
+### media
+
+书籍与电影共用，`type` 取 `book` / `movie`；`status` 取
+`in_progress` / `completed` / `plan_to_read` / `dropped`。
 
 ```sql
 CREATE TABLE media (
     id SERIAL PRIMARY KEY,
-    type VARCHAR(10) NOT NULL,  -- 'book' 或 'movie'
-    display_name_primary VARCHAR(255) NOT NULL,
-    display_name_secondary VARCHAR(255),
-    original_name_primary VARCHAR(255),
-    original_name_secondary VARCHAR(255),
-    creator VARCHAR(255),
-    description_primary TEXT,
-    description_secondary TEXT,
-    cover VARCHAR(1024),
-    status VARCHAR(20) NOT NULL DEFAULT 'wishlist',
-    rating INTEGER DEFAULT 0,
-    category_id INTEGER,
+    type VARCHAR(50) NOT NULL,
+    title VARCHAR(255) NOT NULL,
+    description TEXT,
+    creator VARCHAR(255),           -- 书籍作者 / 电影导演
+    cover_image TEXT,
+    status VARCHAR(50) DEFAULT 'plan_to_read',
+    rating FLOAT DEFAULT 0,
     tags TEXT[],
-    resource_link VARCHAR(1024),
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+    progress INTEGER DEFAULT 0,     -- 书籍已读页数 / 电影已看分钟数
+    user_id INTEGER NOT NULL REFERENCES users(id),
+    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
 );
-
-CREATE INDEX idx_media_type ON media(type);
-CREATE INDEX idx_media_status ON media(status);
-CREATE INDEX idx_media_category ON media(category_id);
 ```
 
-### media_notes 表
-
-存储媒体的笔记信息。
-
-```sql
-CREATE TABLE media_notes (
-    id SERIAL PRIMARY KEY,
-    media_id INTEGER NOT NULL REFERENCES media(id) ON DELETE CASCADE,
-    content TEXT NOT NULL,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-);
-
-CREATE INDEX idx_notes_media ON media_notes(media_id);
-```
-
-### media_categories 表
-
-存储媒体分类信息。
-
-```sql
-CREATE TABLE media_categories (
-    id SERIAL PRIMARY KEY,
-    name VARCHAR(50) NOT NULL,
-    type VARCHAR(10) NOT NULL,  -- 'book' 或 'movie'
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-);
-
-CREATE UNIQUE INDEX idx_category_name_type ON media_categories(name, type);
-```
-
-### book_details 表
-
-存储书籍特有的详细信息。
+### book_details
 
 ```sql
 CREATE TABLE book_details (
     id SERIAL PRIMARY KEY,
-    media_id INTEGER NOT NULL REFERENCES media(id) ON DELETE CASCADE,
-    isbn VARCHAR(20),
+    media_id INTEGER NOT NULL REFERENCES media(id),
+    isbn VARCHAR(50),
+    author VARCHAR(255),
+    publisher VARCHAR(255),
+    publish_date TIMESTAMPTZ,
     pages INTEGER,
-    current_page INTEGER DEFAULT 0,
-    publish_date DATE,
-    publisher VARCHAR(100),
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+    language VARCHAR(50),
+    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
 );
-
-CREATE UNIQUE INDEX idx_book_media ON book_details(media_id);
 ```
 
-### movie_details 表
-
-存储影视作品特有的详细信息。
+### movie_details
 
 ```sql
 CREATE TABLE movie_details (
     id SERIAL PRIMARY KEY,
-    media_id INTEGER NOT NULL REFERENCES media(id) ON DELETE CASCADE,
-    duration INTEGER,  -- 单位：分钟
-    release_date DATE,
-    country VARCHAR(50),
+    media_id INTEGER NOT NULL REFERENCES media(id),
+    director VARCHAR(255),
+    cast_members TEXT[],
+    release_date TIMESTAMPTZ,
+    duration INTEGER,               -- 单位：分钟
     language VARCHAR(50),
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+    country VARCHAR(100),
+    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
 );
+```
 
-CREATE UNIQUE INDEX idx_movie_media ON movie_details(media_id);
+### notes
+
+```sql
+CREATE TABLE notes (
+    id SERIAL PRIMARY KEY,
+    content TEXT NOT NULL,
+    page INTEGER,
+    media_id INTEGER NOT NULL REFERENCES media(id),
+    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+);
+```
+
+### knowledge
+
+```sql
+CREATE TABLE knowledge (
+    id SERIAL PRIMARY KEY,
+    title VARCHAR(255) NOT NULL,
+    content TEXT NOT NULL,
+    type VARCHAR(50) DEFAULT 'note',
+    category VARCHAR(50) DEFAULT 'other',
+    tags TEXT[],
+    user_id INTEGER NOT NULL REFERENCES users(id),
+    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+);
 ```
 
 ## 数据库迁移
 
-项目使用 `golang-migrate` 管理数据库迁移。迁移文件位于 `backend/migrations` 目录。
+使用 [`golang-migrate`](https://github.com/golang-migrate/migrate) 管理迁移，文件位于 `backend/migrations/`，
+命名格式 `{version}_{description}.{up|down}.sql`。
 
-### 迁移文件命名规则
+```bash
+# 应用迁移（本地）
+make local-migrate
 
-迁移文件采用以下格式命名：
+# 或直接调用迁移命令
+cd backend && DATABASE_URL="postgres://user:pass@host:5432/dbname?sslmode=disable" \
+  go run ./cmd/migrate -direction up
 ```
-{version}_{description}.{direction}.sql
+
+创建新迁移：
+
+```bash
+cd backend && migrate create -ext sql -dir migrations -seq <migration_name>
 ```
 
-例如：
-- `000001_create_media_tables.up.sql`
-- `000001_create_media_tables.down.sql`
-
-### 运行迁移
-
-1. 创建新的迁移：
-   ```bash
-   migrate create -ext sql -dir migrations -seq migration_name
-   ```
-
-2. 应用迁移：
-   ```bash
-   migrate -path migrations -database "postgres://user:pass@host:5432/dbname?sslmode=disable" up
-   ```
-
-3. 回滚迁移：
-   ```bash
-   migrate -path migrations -database "postgres://user:pass@host:5432/dbname?sslmode=disable" down
-   ```
-
-## 数据备份与恢复
-
-### 备份数据库
+## 备份与恢复
 
 ```bash
 pg_dump -h localhost -U postgres -d todolist > backup.sql
+psql   -h localhost -U postgres -d todolist < backup.sql
 ```
-
-### 恢复数据库
-
-```bash
-psql -h localhost -U postgres -d todolist < backup.sql
-```
-
-## 性能优化
-
-1. 索引优化
-   - 已为常用查询字段创建索引
-   - 复合索引用于多字段查询
-   - 唯一索引用于保证数据一致性
-
-2. 查询优化
-   - 使用 JOIN 而不是子查询
-   - 适当使用视图简化复杂查询
-   - 分页查询使用 LIMIT 和 OFFSET
-
-3. 配置优化
-   - 根据服务器内存调整 shared_buffers
-   - 适当设置 work_mem
-   - 调整 max_connections
-
-## 监控与维护
-
-1. 定期维护
-   - VACUUM 清理无用空间
-   - ANALYZE 更新统计信息
-   - 检查长时间运行的查询
-
-2. 性能监控
-   - 使用 pg_stat_statements 跟踪查询性能
-   - 监控表大小和索引使用情况
-   - 检查死锁和阻塞查询 

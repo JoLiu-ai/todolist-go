@@ -3,281 +3,191 @@
 ## 基础信息
 
 - 基础 URL：`http://localhost:8080`
-- API 版本：v1
-- 所有请求和响应均使用 JSON 格式
+- API 前缀：`/api/v1`（健康检查 `/health` 除外）
+- 请求与响应均为 JSON
+- 鉴权：受保护接口需在请求头携带 `Authorization: Bearer <token>`
 
-## 媒体管理
-
-### 获取媒体列表
+### 健康检查
 
 ```http
-GET /api/v1/media?type={type}
+GET /health
 ```
 
-参数：
-- `type`：媒体类型，可选值：`book` 或 `movie`
-
-响应示例：
 ```json
-[
-  {
-    "id": 1,
-    "type": "book",
-    "display_name": {
-      "primary": "三体",
-      "secondary": null
-    },
-    "original_name": {
-      "primary": "The Three-Body Problem",
-      "secondary": null
-    },
-    "creator": "刘慈欣",
-    "description": {
-      "primary": "地球文明向宇宙发出广播，被三体文明接收到...",
-      "secondary": null
-    },
-    "cover": "https://example.com/cover.jpg",
-    "status": "finished",
-    "rating": 5,
-    "category_id": 1,
-    "tags": ["科幻", "硬科幻"],
-    "resource_link": "https://example.com/book",
-    "notes": []
-  }
-]
+{ "status": "ok", "time": "2026-08-22T10:00:00Z" }
 ```
 
-### 获取单个媒体详情
+## 认证
+
+### 注册
 
 ```http
-GET /api/v1/media/{id}
+POST /api/v1/auth/register
 ```
 
-参数：
-- `id`：媒体 ID
+请求体（`username` 可选，缺省时取邮箱前缀）：
 
-响应格式同上。
-
-### 创建媒体
-
-```http
-POST /api/v1/media
+```json
+{ "email": "test@example.com", "password": "test123456", "username": "test" }
 ```
 
-请求体示例：
+响应：
+
 ```json
 {
-  "type": "book",
-  "display_name": {
-    "primary": "三体"
-  },
-  "original_name": {
-    "primary": "The Three-Body Problem"
-  },
-  "creator": "刘慈欣",
-  "description": {
-    "primary": "地球文明向宇宙发出广播，被三体文明接收到..."
-  },
-  "cover": "https://example.com/cover.jpg",
-  "status": "finished",
-  "rating": 5,
-  "category_id": 1,
-  "tags": ["科幻", "硬科幻"],
-  "resource_link": "https://example.com/book"
+  "token": "eyJhbGciOiJIUzI1NiIs...",
+  "user": { "id": 1, "email": "test@example.com", "username": "test" }
 }
 ```
-
-### 更新媒体
-
-```http
-PUT /api/v1/media/{id}
-```
-
-请求体格式同创建媒体。
-
-### 删除媒体
-
-```http
-DELETE /api/v1/media/{id}
-```
-
-## 笔记管理
-
-### 获取媒体的笔记列表
-
-```http
-GET /api/v1/media/{id}/notes
-```
-
-响应示例：
-```json
-[
-  {
-    "id": 1,
-    "media_id": 1,
-    "content": "这是一条笔记",
-    "created_at": "2024-01-26T12:00:00Z",
-    "updated_at": "2024-01-26T12:00:00Z"
-  }
-]
-```
-
-### 添加笔记
-
-```http
-POST /api/v1/media/{id}/notes
-```
-
-请求体示例：
-```json
-{
-  "content": "这是一条新笔记"
-}
-```
-
-### 更新笔记
-
-```http
-PUT /api/v1/media/{id}/notes/{note_id}
-```
-
-请求体示例：
-```json
-{
-  "content": "更新后的笔记内容"
-}
-```
-
-### 删除笔记
-
-```http
-DELETE /api/v1/media/{id}/notes/{note_id}
-```
-
-## 分类管理
-
-### 获取分类列表
-
-```http
-GET /api/v1/categories?type={type}
-```
-
-参数：
-- `type`：媒体类型，可选值：`book` 或 `movie`
-
-响应示例：
-```json
-[
-  {
-    "id": 1,
-    "name": "科幻",
-    "type": "book"
-  }
-]
-```
-
-### 创建分类
-
-```http
-POST /api/v1/categories
-```
-
-请求体示例：
-```json
-{
-  "name": "科幻",
-  "type": "book"
-}
-```
-
-### 更新分类
-
-```http
-PUT /api/v1/categories/{id}
-```
-
-请求体格式同创建分类。
-
-### 删除分类
-
-```http
-DELETE /api/v1/categories/{id}
-```
-
-## 任务管理
-
-### 创建任务
-
-POST /api/tasks
-
-请求体：
-```json
-{
-    "title": "完成项目文档",
-    "description": "编写项目的技术文档和用户手册",
-    "priority": 1,
-    "due_date": "2024-03-20T15:00:00Z"
-}
-```
-
-### 获取任务列表
-
-GET /api/tasks?status=pending
-
-查询参数：
-- status: 任务状态（可选）
-
-### 更新任务
-
-PUT /api/tasks/:id
-
-请求体：
-```json
-{
-    "status": "completed",
-    "priority": 2
-}
-```
-
-### 删除任务
-
-DELETE /api/tasks/:id
-
-## 认证 API
 
 ### 登录
 
 ```http
 POST /api/v1/auth/login
+```
+
+请求体（`username` 字段可传用户名或邮箱）：
+
+```json
+{ "username": "test", "password": "test123456" }
+```
+
+响应同注册。
+
+### 获取当前用户
+
+```http
+GET /api/v1/auth/profile        （需鉴权）
+```
+
+## 媒体（书籍 / 电影，需鉴权）
+
+媒体记录字段：`type`(`book`|`movie`)、`title`、`description`、`creator`、`cover_image`、
+`status`(`in_progress`|`completed`|`plan_to_read`|`dropped`)、`rating`、`tags`(字符串数组)、`progress`。
+
+### 列表
+
+```http
+GET /api/v1/media?type={book|movie}&status=&title=&creator=&rating=&page=1&page_size=20
+```
+
+```json
+{ "items": [ /* Media[] */ ], "total": 42, "page": 1, "size": 20 }
+```
+
+### 创建 / 详情 / 更新 / 删除
+
+```http
+POST   /api/v1/media
+GET    /api/v1/media/:id
+PUT    /api/v1/media/:id
+DELETE /api/v1/media/:id
+```
+
+创建请求体示例：
+
+```json
+{
+  "type": "book",
+  "title": "三体",
+  "creator": "刘慈欣",
+  "description": "地球文明向宇宙发出广播……",
+  "status": "in_progress",
+  "rating": 5,
+  "tags": ["科幻", "硬科幻"],
+  "progress": 120
+}
+```
+
+`GET /api/v1/media/:id` 返回媒体本身、关联笔记与书籍/电影详情：
+
+```json
+{ "media": { /* Media */ }, "notes": [ /* Note[] */ ], "details": { /* BookDetails|MovieDetails */ } }
+```
+
+### 统计与最近
+
+```http
+GET /api/v1/media/stats
+GET /api/v1/media/recent?limit=5
+```
+
+`stats` 响应：
+
+```json
+{ "total_books": 10, "reading_books": 2, "total_movies": 8, "watching_movies": 1 }
+```
+
+## 笔记（挂在媒体下，需鉴权）
+
+```http
+POST   /api/v1/media/:id/notes
+PUT    /api/v1/media/:id/notes/:noteId
+DELETE /api/v1/media/:id/notes/:noteId
+```
 
 请求体：
-{
-    "username": "your_username",
-    "password": "your_password"
-}
 
-响应：
+```json
+{ "content": "这是一条笔记", "page": 42 }
+```
+
+## 任务（需鉴权）
+
+任务字段：`title`、`description`、`status`、`priority`(整数)、`category`、`due_date`。
+
+```http
+POST   /api/v1/tasks
+GET    /api/v1/tasks
+GET    /api/v1/tasks/today
+GET    /api/v1/tasks/stats
+GET    /api/v1/tasks/:id
+PUT    /api/v1/tasks/:id
+DELETE /api/v1/tasks/:id
+```
+
+创建请求体：
+
+```json
 {
-    "token": "eyJhbGciOiJIUzI1NiIs...",
-    "user": {
-        "id": 1,
-        "username": "your_username"
-    }
+  "title": "完成项目文档",
+  "description": "编写技术文档",
+  "priority": 1,
+  "category": "work",
+  "due_date": "2026-09-20T15:00:00Z"
 }
+```
+
+`stats` 响应：
+
+```json
+{ "total_tasks": 12, "completed_tasks": 5, "pending_tasks": 7, "overdue_tasks": 2 }
+```
+
+## 知识条目（需鉴权）
+
+字段：`title`、`content`、`type`、`category`、`tags`(字符串数组)。
+
+```http
+POST   /api/v1/knowledge
+GET    /api/v1/knowledge
+GET    /api/v1/knowledge/:id
+PUT    /api/v1/knowledge/:id
+DELETE /api/v1/knowledge/:id
+```
+
+## 首页公开数据
+
+```http
+GET /api/v1/home
 ```
 
 ## 错误处理
 
-所有 API 在发生错误时会返回相应的 HTTP 状态码和错误信息：
+错误统一返回对应 HTTP 状态码与消息体：
 
 ```json
-{
-  "error": "错误信息描述"
-}
+{ "error": "错误信息描述" }
 ```
 
-常见状态码：
-- 200：成功
-- 400：请求参数错误
-- 404：资源不存在
-- 500：服务器内部错误 
+常见状态码：`200` 成功、`201` 已创建、`400` 参数错误、`401` 未认证、`404` 资源不存在、`500` 服务器错误。

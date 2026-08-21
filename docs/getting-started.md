@@ -1,144 +1,109 @@
 # 项目启动指南
 
+> 面向开发者的快速上手说明。更完整的命令列表见根目录 [README.md](../README.md)。
+
 ## 目录结构
 
 ```
-cute-todo/
-├── frontend/           # 前端项目目录
-│   ├── src/           # 源代码
-│   ├── public/        # 静态资源
-│   └── package.json   # 前端依赖配置
-├── backend/           # 后端项目目录
-│   ├── cmd/          # 入口文件
-│   ├── internal/     # 内部代码
-│   └── migrations/   # 数据库迁移文件
-├── docker/           # Docker 配置文件
-│   ├── frontend/     # 前端 Docker 配置
-│   └── backend/      # 后端 Docker 配置
-└── Makefile          # 项目管理脚本
+todolist-go/
+├── frontend/            # React + Vite 前端
+│   ├── src/            # 源代码（入口 main.tsx → router.tsx）
+│   ├── public/         # 静态资源
+│   └── package.json
+├── backend/            # Go 后端（cute-todo/backend）
+│   ├── cmd/
+│   │   ├── server/    # HTTP 服务入口
+│   │   └── migrate/   # 迁移命令
+│   ├── internal/      # 分层应用代码（config/models/repository/services/handlers/router）
+│   └── migrations/    # 数据库迁移
+├── docker/            # 容器编排（local / prod / scripts / db）
+├── docs/              # 项目文档
+├── Makefile
+└── start.sh           # 无 Docker 一键启动
 ```
 
 ## 环境要求
 
-- Docker
-- Docker Compose
+- Go 1.22+
+- Node.js 18+ 与 npm
+- PostgreSQL 15/16
 - Make
+- Docker & Docker Compose（可选，仅用于容器启动）
 
-## 快速开始
+## 快速开始（无 Docker）
 
-1. 克隆项目：
-   ```bash
-   git clone <repository-url>
-   cd cute-todo
-   ```
+确保本机 PostgreSQL 已启动，且 `backend/.env` 的连接信息可用，然后：
 
-2. 启动项目：
-   ```bash
-   make up
-   ```
-   这个命令会：
-   - 构建并启动所有必要的容器
-   - 运行数据库迁移
-   - 启动前端和后端服务
+```bash
+./start.sh
+```
 
-3. 访问应用：
-   - 前端：http://localhost:3000
-   - 后端 API：http://localhost:8081
+脚本会检查数据库、安装前端依赖、执行迁移、写入测试账号，并同时启动前后端。
 
-## 数据库配置
+访问地址：
 
-数据库配置位于 `docker/postgres/init.sql` 和 `backend/config/config.yaml`。
+- 前端：http://localhost:5173
+- 后端 API：http://localhost:8080
+- 健康检查：http://localhost:8080/health
 
-默认配置：
-- 数据库：PostgreSQL 15
-- 用户名：postgres
-- 密码：postgres
-- 数据库名：todolist
-- 端口：5432
+测试账号：`test@example.com` / 用户名 `test` / 密码 `test123456`。
 
-## Docker 配置
+## 快速开始（Docker）
 
-Docker 相关配置文件位置：
-- 主配置：`docker-compose.yml`（项目根目录）
-- 前端：`docker/frontend/Dockerfile`
-- 后端：`docker/backend/Dockerfile`
-- 数据库初始化：`docker/postgres/init.sql`
+```bash
+make up      # 启动所有服务
+make logs    # 查看日志
+make down    # 停止服务
+```
 
-## Makefile 命令
+## 配置说明
 
-项目提供了以下 Make 命令：
+后端运行时配置全部来自环境变量（由 `backend/.env` 提供）：
 
-- `make up`：启动所有服务
-- `make down`：停止所有服务
-- `make restart`：重启所有服务
-- `make logs`：查看服务日志
-- `make migrate`：运行数据库迁移
+```env
+DB_HOST=localhost
+DB_PORT=5432
+DB_USER=postgres
+DB_PASSWORD=postgres
+DB_NAME=todolist
+DB_SSLMODE=disable
+JWT_SECRET=<your-secret>
+PORT=8080
+```
 
-## 开发指南
+`backend/config/config.yaml` 仅在 Docker/Make 流程中由 `scripts/config-to-env.sh`（依赖 `yq`）
+转换为上述环境变量；Go 代码本身不直接读取该 YAML。
 
-### 前端开发
+## 本地开发
 
-1. 本地开发模式：
-   ```bash
-   cd frontend
-   npm install
-   npm run dev
-   ```
+### 前端
 
-2. 构建：
-   ```bash
-   npm run build
-   ```
+```bash
+cd frontend
+npm install
+npm run dev        # 开发服务器（http://localhost:5173）
+npm run build      # 生产构建（tsc + vite build）
+```
 
-### 后端开发
+### 后端
 
-1. 本地开发模式：
-   ```bash
-   cd backend
-   go mod download
-   go run cmd/main.go
-   ```
-
-2. 构建：
-   ```bash
-   go build -o app cmd/main.go
-   ```
+```bash
+cd backend
+go mod download
+go run ./cmd/server   # 启动服务
+go build -o bin/main ./cmd/server
+```
 
 ### 数据库迁移
 
-1. 创建新的迁移：
-   ```bash
-   cd backend
-   migrate create -ext sql -dir migrations -seq migration_name
-   ```
-
-2. 运行迁移：
-   ```bash
-   make migrate
-   ```
+```bash
+make local-migrate                 # 对本机 PostgreSQL 执行迁移
+# 新建迁移文件：
+cd backend && migrate create -ext sql -dir migrations -seq <name>
+```
 
 ## 常见问题
 
-1. 端口冲突
-   - 前端默认端口：3000
-   - 后端默认端口：8080
-   - 数据库默认端口：5432
-   
-   如果遇到端口冲突，可以在 `docker-compose.yml` 中修改端口映射。
-
-2. 数据库连接问题
-   - 检查数据库容器是否正常运行：`docker ps`
-   - 检查数据库日志：`docker logs cute-todo-db-1`
-   - 确认数据库配置是否正确
-
-3. 服务启动失败
-   - 检查 Docker 日志：`make logs`
-   - 确认所有必要的环境变量都已设置
-   - 检查配置文件是否正确
-
-## 开发环境
-
-开发环境下的访问地址：
-
-- 前端界面：http://localhost:5173
-- 后端 API：http://localhost:8080 
+1. **端口冲突**：前端 5173、后端 8080、数据库 5432，可在 `.env` 或 docker compose 中调整。
+2. **数据库连接失败**：确认 PostgreSQL 已启动、`backend/.env` 配置正确；Docker 下用 `make logs` 查看日志。
+3. **服务启动失败**：确认 `JWT_SECRET` 等必需环境变量已设置。

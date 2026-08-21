@@ -136,17 +136,25 @@ make down
 
 ```
 .
-├── backend/              # 后端 Go 应用
-│   ├── cmd/             # 主程序入口
-│   ├── config/          # 配置文件
-│   └── ...
-├── frontend/             # 前端 React 应用
+├── backend/              # 后端 Go 应用（cute-todo/backend）
+│   ├── cmd/
+│   │   ├── server/      # HTTP 服务入口（含优雅关闭）
+│   │   └── migrate/     # 数据库迁移命令
+│   ├── internal/        # 分层代码：config/models/repository/services/handlers/router
+│   ├── migrations/      # 数据库迁移
+│   └── config/          # config.yaml（供 config-to-env.sh 生成环境变量）
+├── frontend/             # 前端 React 应用（入口 main.tsx → router.tsx）
 ├── docker/               # Docker 相关文件
 │   ├── local/           # 本地容器环境
 │   ├── prod/            # 生产环境
 │   └── scripts/         # 构建和部署脚本
+├── docs/                 # 项目文档（入门 / API / 数据库）
 └── start.sh              # 无 Docker 本地启动脚本
 ```
+
+> 完整结构见 [structure.md](structure.md)；后端 / 前端目录说明见
+> [backend/docs/directory_structure.md](backend/docs/directory_structure.md) 与
+> [frontend/docs/directory_structure.md](frontend/docs/directory_structure.md)。
 
 ## 常用命令
 
