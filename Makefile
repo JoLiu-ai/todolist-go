@@ -31,7 +31,7 @@ help: ## Show this help message
 
 build: export-env ## Build all services and backend binary
 	$(DOCKER_CMD) build
-	cd backend && go build -o bin/main cmd/main.go
+	cd backend && go build -o bin/main ./cmd/server
 
 clean: down ## Clean up all containers, volumes and binary
 	$(DOCKER_CMD) down -v
@@ -88,7 +88,7 @@ dev-frontend: ## Start frontend development server
 	cd frontend && npm run dev
 
 dev-backend: ## Start backend development server
-	cd backend && go run cmd/main.go
+	cd backend && go run ./cmd/server
 
 local-start: ## Start frontend and backend locally without Docker
 	./start.sh
@@ -100,7 +100,7 @@ local-seed: ## Seed local PostgreSQL with the test account
 	cd backend && set -a && . ./.env && set +a && PGPASSWORD="$$DB_PASSWORD" psql -v ON_ERROR_STOP=1 -h "$$DB_HOST" -p "$$DB_PORT" -U "$$DB_USER" -d "$${LOCAL_DB_NAME:-$$DB_NAME}" -f scripts/seed_test_user.sql
 
 local-backend: ## Start backend locally without Docker
-	cd backend && go run cmd/main.go
+	cd backend && go run ./cmd/server
 
 local-frontend: ## Start frontend locally without Docker
 	cd frontend && npm run dev
@@ -148,7 +148,7 @@ restart: ## Restart services (usage: make restart service=backend)
 	fi
 
 run: ## Run backend application
-	cd backend && go run cmd/main.go
+	cd backend && go run ./cmd/server
 
 test: test-frontend test-backend ## Run all tests
 

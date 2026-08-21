@@ -87,7 +87,7 @@ func AuthMiddleware() gin.HandlerFunc {
 			c.Set("username", username)
 		}
 
-		fmt.Println("=== AuthMiddleware End ===\n")
+		fmt.Println("=== AuthMiddleware End ===")
 		c.Next()
 	}
 }

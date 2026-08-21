@@ -14,7 +14,7 @@ RUN go mod download
 COPY . .
 
 # 编译
-RUN CGO_ENABLED=1 GOOS=linux go build -o main cmd/main.go && \
+RUN CGO_ENABLED=1 GOOS=linux go build -o main ./cmd/server && \
     chmod +x main && \
     ls -la main
 

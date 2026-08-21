@@ -1,0 +1,17 @@
+# 编译产物
+/bin/
+/main
+tmp/
+
+# 本地环境变量（保留 .env.example / .env.docker 作为模板）
+.env.local
+
+# 依赖与测试
+vendor/
+*.test
+coverage.out
+
+# 领域模型包：显式覆盖用户全局 gitignore 中的 `models` 规则，
+# 否则该包会被静默排除，导致后端无法从干净检出编译。
+!internal/models/
+!internal/models/**

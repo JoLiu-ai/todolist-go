@@ -51,7 +51,7 @@ func (h *TaskHandler) CreateTask(c *gin.Context) {
 	}
 
 	fmt.Printf("Task created successfully: %+v\n", task)
-	fmt.Println("=== CreateTask End ===\n")
+	fmt.Println("=== CreateTask End ===")
 
 	c.JSON(http.StatusCreated, task)
 }

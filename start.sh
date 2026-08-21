@@ -139,7 +139,7 @@ cleanup() {
 trap cleanup EXIT INT TERM
 
 echo "Starting backend on http://127.0.0.1:${PORT}"
-(cd "$BACKEND_DIR" && GOPROXY="$GOPROXY" go run cmd/main.go) >>"$BACKEND_LOG" 2>&1 &
+(cd "$BACKEND_DIR" && GOPROXY="$GOPROXY" go run ./cmd/server) >>"$BACKEND_LOG" 2>&1 &
 BACKEND_PID=$!
 echo "Backend pid: $BACKEND_PID"
 
